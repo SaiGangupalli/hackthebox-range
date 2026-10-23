@@ -25,6 +25,7 @@ export const navGroups: NavGroup[] = [
   ]},
   { g: "Lab", items: [
     { href: "/tools", name: "Lab tools", icon: "tools" },
+    { href: "/cheatsheet", name: "Cheatsheet (PDF)", icon: "book" },
     { href: "/resources", name: "Resources", icon: "resources" },
   ]},
 ];
