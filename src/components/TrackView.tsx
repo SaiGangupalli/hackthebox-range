@@ -4,6 +4,8 @@ import Link from "next/link";
 import { tracks } from "@/data/tracks";
 import { Icon } from "./icons";
 import { Copyable } from "./Copyable";
+import { Learn } from "./Learn";
+import { PracticeLab } from "./labs/PracticeLab";
 import { useProgress, toggleDone } from "@/lib/progress";
 
 export function TrackView({ slug }: { slug: string }) {
@@ -25,6 +27,10 @@ export function TrackView({ slug }: { slug: string }) {
         <Icon name={done ? "check" : "circle"} />
         {done ? "Studied" : "Mark as studied"}
       </button>
+
+      <Learn slug={slug} />
+
+      <PracticeLab slug={slug} />
 
       <div className="sec-h"><Icon name="zap" />Core skills</div>
       <div className="chips">
