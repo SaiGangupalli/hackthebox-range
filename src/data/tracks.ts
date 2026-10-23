@@ -1,0 +1,261 @@
+export type SheetRow = { code: string; note: string };
+export type Sheet = { title: string; rows: SheetRow[] };
+export type Lab = { name: string; url: string; note: string; href?: string };
+export type Track = {
+  slug: string;
+  num: number;
+  title: string;
+  tag: string;
+  color: string;
+  blurb: string;
+  skills: string[];
+  sheets: Sheet[];
+  tools: string[];
+  labs: Lab[];
+  defend: string[];
+};
+
+export const tracks: Record<string, Track> = {
+  osint: {
+    slug: "osint", num: 1, title: "OSINT", tag: "open-source intel", color: "#53b9f0",
+    blurb: "Open-Source Intelligence: build a picture of a target from public data alone — no packets touched. The CTF skill is knowing where public footprints hide and how to pivot between them.",
+    skills: ["search operators", "username enumeration", "metadata analysis", "geolocation", "WHOIS / DNS", "certificate transparency", "reverse image search", "breach awareness"],
+    sheets: [
+      { title: "Google dorking", rows: [
+        { code: "site:example.com filetype:pdf", note: "Scope to a domain / file type" },
+        { code: 'intitle:"index of" inurl:backup', note: "Exposed directory listings" },
+        { code: '"internal use only" -site:example.com', note: "Leaked docs off-domain" },
+        { code: "intext:password filetype:env", note: "Config / secret exposure patterns" },
+      ]},
+      { title: "Domain & infra recon", rows: [
+        { code: "whois example.com", note: "Registrar, dates, contacts" },
+        { code: "dig example.com ANY +noall +answer", note: "DNS records (A, MX, TXT…)" },
+        { code: "curl -s https://crt.sh/?q=%25.example.com", note: "Subdomains via cert transparency" },
+        { code: "exiftool photo.jpg", note: "GPS, device, timestamps in metadata" },
+      ]},
+    ],
+    tools: ["Google dorks", "Shodan", "Censys", "crt.sh", "theHarvester", "Sherlock", "Maltego", "exiftool", "Wayback Machine"],
+    labs: [
+      { name: "TryHackMe — OSINT path", url: "https://tryhackme.com", note: "Guided rooms from dorking to sock puppets." },
+      { name: "OSINT Dojo", url: "https://www.osintdojo.com", note: "Methodology + practice exercises." },
+      { name: "Have I Been Pwned", url: "https://haveibeenpwned.com", note: "Check exposure of accounts you own." },
+    ],
+    defend: ["Minimise public footprint; review what staff post", "Strip EXIF/metadata before publishing files", "Monitor for exposed credentials and leaked keys", "Lock down DNS zone transfers and verbose WHOIS"],
+  },
+
+  network: {
+    slug: "network", num: 2, title: "Network Challenge", tag: "traffic & protocols", color: "#43d183",
+    blurb: "Read the wire. Pull flags out of packet captures, follow a conversation across a stream, and understand protocols well enough to spot what does not belong.",
+    skills: ["packet analysis", "TCP/IP & HTTP", "Wireshark filters", "stream reconstruction", "protocol anomalies", "service enumeration"],
+    sheets: [
+      { title: "Wireshark display filters", rows: [
+        { code: 'http.request.method == "POST"', note: "Posted form / login data" },
+        { code: 'tcp.port == 80 && frame contains "flag"', note: "Keyword hunt in payloads" },
+        { code: 'dns.qry.name contains "exfil"', note: "Suspicious DNS lookups" },
+        { code: "tcp.flags.syn==1 && tcp.flags.ack==0", note: "Scan / connection attempts" },
+      ]},
+      { title: "Capture & carve (CLI)", rows: [
+        { code: 'tshark -r cap.pcap -Y "http" -T fields -e http.host', note: "Extract fields from a pcap" },
+        { code: "tcpdump -r cap.pcap -nn -A port 80", note: "Read a capture, ASCII payloads" },
+        { code: "strings -n 8 cap.pcap | grep -i flag", note: "Quick keyword sweep" },
+      ]},
+    ],
+    tools: ["Wireshark", "tshark", "tcpdump", "Nmap", "Zeek", "NetworkMiner", "Scapy"],
+    labs: [
+      { name: "malware-traffic-analysis.net", url: "https://www.malware-traffic-analysis.net", note: "Real pcap analysis exercises with answers." },
+      { name: "Wireshark sample captures", url: "https://wiki.wireshark.org/SampleCaptures", note: "Protocol examples to practice filtering." },
+      { name: "TryHackMe — network rooms", url: "https://tryhackme.com", note: "Guided packet + enumeration labs." },
+    ],
+    defend: ["Only scan hosts you own or are authorized to test", "Segment networks; filter egress traffic", "Deploy IDS/IPS and baseline normal traffic", "Prefer encrypted protocols (TLS, SSH, DoH)"],
+  },
+
+  splunk: {
+    slug: "splunk", num: 3, title: "Splunk", tag: "SIEM & log hunting", color: "#f6b84b",
+    blurb: "When the answer is buried in millions of log lines, SPL is the shovel. Learn to filter, aggregate and pivot to find the one event that matters.",
+    skills: ["SPL pipeline", "stats & aggregation", "field extraction (rex)", "timecharts", "correlation", "transactions"],
+    sheets: [
+      { title: "SPL essentials", rows: [
+        { code: "index=main sourcetype=access_combined status>=500", note: "Scope + filter" },
+        { code: "... | stats count by src_ip | sort -count", note: "Count & rank by field" },
+        { code: "... | timechart span=1h count by status", note: "Trend over time" },
+        { code: '... | rex field=_raw "user=(?<user>\\w+)"', note: "Extract a field at search time" },
+      ]},
+      { title: "Hunting patterns", rows: [
+        { code: "... | top limit=10 uri_path", note: "Most-hit paths" },
+        { code: "... | transaction src_ip maxpause=5m", note: "Group events into sessions" },
+        { code: "... | eval ratio=bytes_out/bytes_in | where ratio>50", note: "Possible exfil heuristic" },
+      ]},
+    ],
+    tools: ["Splunk", "SPL", "Boss of the SOC (BOTS) datasets", "Splunk Security Essentials"],
+    labs: [
+      { name: "Splunk Boss of the SOC (BOTS)", url: "https://bots.splunk.com", note: "Public datasets — the classic blue-team CTF." },
+      { name: "Splunk free training", url: "https://www.splunk.com/en_us/training/free-courses/overview.html", note: "Search fundamentals, free." },
+      { name: "TryHackMe — SIEM rooms", url: "https://tryhackme.com", note: "SPL and detection practice." },
+    ],
+    defend: ["Centralise logs; normalise sourcetypes", "Build detections & alerts, version them as code", "Dashboard the signals a SOC watches daily", "Tune to cut noise so real alerts surface"],
+  },
+
+  stego: {
+    slug: "stego", num: 4, title: "Steganography", tag: "hidden in plain sight", color: "#b07cff",
+    blurb: "Data hidden inside other data — a message in an image’s least-significant bits, a file appended past the end marker, a signal painted into an audio spectrogram.",
+    skills: ["LSB analysis", "metadata inspection", "file carving", "spectrograms", "magic-byte / polyglot detection"],
+    sheets: [
+      { title: "Identify what you have", rows: [
+        { code: "file suspicious.png", note: "True type vs. extension" },
+        { code: "binwalk suspicious.png", note: "Find embedded/appended files" },
+        { code: "exiftool -a -u suspicious.jpg", note: "All metadata, including hidden tags" },
+        { code: "xxd suspicious.png | head", note: "Inspect magic bytes & structure" },
+      ]},
+      { title: "Extract", rows: [
+        { code: "binwalk -e suspicious.png", note: "Auto-carve embedded files" },
+        { code: "zsteg -a image.png", note: "PNG/BMP LSB across channels" },
+        { code: "steghide extract -sf image.jpg", note: "JPEG payloads (passphrase)" },
+        { code: "stegseek image.jpg wordlist.txt", note: "Crack a steghide passphrase" },
+      ]},
+    ],
+    tools: ["binwalk", "zsteg", "steghide", "stegseek", "stegsolve", "exiftool", "foremost", "Audacity", "Aperi’Solve"],
+    labs: [
+      { name: "Lab tool: LSB playground", url: "/tools", href: "/tools", note: "Hide & reveal a message in image pixels, in-browser." },
+      { name: "picoCTF — Forensics", url: "https://picoctf.org", note: "Beginner-friendly stego challenges." },
+      { name: "Aperi’Solve", url: "https://www.aperisolve.com", note: "Layered stego analysis in one pass." },
+    ],
+    defend: ["Strip metadata and re-encode uploaded media", "Flag anomalous file sizes / entropy", "Content inspection & DLP on egress"],
+  },
+
+  crypto: {
+    slug: "crypto", num: 5, title: "Cryptography", tag: "ciphers & encodings", color: "#ff8f5e",
+    blurb: "From ROT13 to RSA. First tell encoding from encryption, identify the scheme, then apply the right attack — frequency analysis, a known weakness, or a dictionary.",
+    skills: ["encoding vs. encryption", "classical ciphers", "frequency analysis", "hashing", "symmetric/asymmetric", "identifying schemes"],
+    sheets: [
+      { title: "Encodings (reversible, not secret)", rows: [
+        { code: "Base64 / Base32 / Hex / URL", note: "Try the lab decoder in Tools" },
+        { code: "ASCII <-> binary <-> decimal", note: "Padding of 8 bits = likely binary" },
+        { code: "Morse, Atbash, ROT13/ROT47", note: "Fast to rule in or out" },
+      ]},
+      { title: "Classical & modern", rows: [
+        { code: "Caesar / Vigenere / substitution", note: "Frequency analysis; try the playground" },
+        { code: "XOR with repeating key", note: "Crib-drag; key often leaks" },
+        { code: "hashcat -m 0 hashes.txt wordlist", note: "Crack hashes you are authorized to" },
+        { code: "RSA: factordb / small-e / common-n", note: "CTF RSA usually has a flaw" },
+      ]},
+    ],
+    tools: ["CyberChef", "dcode.fr", "hashcat", "John the Ripper", "RsaCtfTool", "factordb", "pycryptodome", "SageMath"],
+    labs: [
+      { name: "Lab tools: cipher + hashing", url: "/tools", href: "/tools", note: "Encoders, Caesar/Vigenere/XOR, SHA hashing, hash-ID." },
+      { name: "CryptoHack", url: "https://cryptohack.org", note: "Best-in-class modern crypto puzzles." },
+      { name: "Cryptopals", url: "https://cryptopals.com", note: "Attacks you implement yourself." },
+    ],
+    defend: ["Never roll your own crypto — use vetted libraries", "Hash passwords with argon2/bcrypt + salt", "Use authenticated encryption (AES-GCM)", "Rotate keys; manage them in a KMS/secret store"],
+  },
+
+  webmobile: {
+    slug: "webmobile", num: 6, title: "Web & Mobile", tag: "app attack surface", color: "#ff5e8a",
+    blurb: "The biggest CTF surface. Map the app, abuse trust boundaries, and chain small flaws into impact. Pairs directly with the OWASP Top 10 track. Lab targets only.",
+    skills: ["HTTP & proxies", "injection", "auth/session flaws", "IDOR", "SSRF & traversal", "APK/IPA analysis"],
+    sheets: [
+      { title: "Web recon & testing (authorized labs)", rows: [
+        { code: "robots.txt, sitemap.xml, /.git/", note: "Low-hanging exposure" },
+        { code: "ffuf -u URL/FUZZ -w wordlist.txt", note: "Content / parameter discovery" },
+        { code: "' OR '1'='1   —   UNION SELECT …", note: "SQLi test strings -> parameterize to fix" },
+        { code: "<img src=x onerror=alert(1)>", note: "XSS probe -> encode output + CSP to fix" },
+        { code: "../../../../etc/passwd", note: "Path traversal / LFI test" },
+      ]},
+      { title: "Mobile analysis", rows: [
+        { code: "apktool d app.apk", note: "Decode resources & manifest" },
+        { code: "jadx-gui app.apk", note: "Decompile to readable Java" },
+        { code: 'grep -ri "api_key\\|secret" ./app', note: "Hardcoded secrets" },
+        { code: "MobSF (static+dynamic)", note: "Automated mobile app scan" },
+      ]},
+    ],
+    tools: ["Burp Suite", "OWASP ZAP", "ffuf", "gobuster", "sqlmap", "nikto", "jadx", "apktool", "Frida", "MobSF"],
+    labs: [
+      { name: "PortSwigger Web Security Academy", url: "https://portswigger.net/web-security", note: "Free, world-class, with live labs. Start here." },
+      { name: "OWASP Juice Shop", url: "https://owasp.org/www-project-juice-shop/", note: "Deliberately vulnerable modern web app." },
+      { name: "DVWA / WebGoat", url: "https://github.com/digininja/DVWA", note: "Classic self-hosted practice targets." },
+    ],
+    defend: ["See the OWASP Top 10 track for per-risk defenses", "Parameterize queries; encode all output", "Enforce auth server-side on every object (no IDOR)", "Pin certs & keep secrets out of mobile builds"],
+  },
+
+  genai: {
+    slug: "genai", num: 7, title: "GenAI / Prompt Eng.", tag: "LLM security", color: "#5ee0c8",
+    blurb: "This year’s focus. LLM-backed apps add a brand-new attack surface: untrusted text that the model may treat as instructions. Learn to break and then harden it. Maps to the OWASP LLM Top 10.",
+    skills: ["prompt injection (direct/indirect)", "jailbreak patterns", "system-prompt leakage", "insecure output handling", "excessive agency", "guardrail design"],
+    sheets: [
+      { title: "How LLM apps get attacked (concepts)", rows: [
+        { code: "Direct injection", note: "User input overrides the system prompt" },
+        { code: "Indirect injection", note: "Instructions hidden in retrieved web/doc/email content" },
+        { code: "Insecure output handling", note: "LLM output used as HTML/SQL/shell downstream" },
+        { code: "Excessive agency", note: "Over-broad tool/plugin permissions get abused" },
+      ]},
+      { title: "Defensive playbook", rows: [
+        { code: "Treat all model output as untrusted", note: "Encode/validate before use" },
+        { code: "Least privilege for tools & data", note: "Scope every action the agent can take" },
+        { code: "Human-in-the-loop for high impact", note: "Confirm irreversible actions" },
+        { code: "Separate data from instructions", note: "Mark & isolate retrieved content" },
+      ]},
+    ],
+    tools: ["OWASP LLM Top 10", "garak", "PyRIT", "promptfoo", "Rebuff", "Lakera Guard"],
+    labs: [
+      { name: "OWASP LLM Top 10 track", url: "/llm", href: "/llm", note: "Full risk list with tests & defenses." },
+      { name: "Lakera — Gandalf", url: "https://gandalf.lakera.ai", note: "Prompt-injection game, beginner to hard." },
+      { name: "HackAPrompt", url: "https://www.hackaprompt.com", note: "Structured prompt-hacking challenges." },
+    ],
+    defend: ["Validate & encode model output before any downstream use", "Constrain tools to least privilege; log tool calls", "Guard against indirect injection in RAG sources", "Red-team with garak/PyRIT before shipping"],
+  },
+
+  forensics: {
+    slug: "forensics", num: 8, title: "Forensics", tag: "DFIR & artifacts", color: "#8fb4ff",
+    blurb: "Reconstruct what happened from the evidence left behind — disk images, memory dumps, logs and file artifacts. Patience and a timeline win these.",
+    skills: ["disk & memory forensics", "file carving", "timeline analysis", "Windows artifacts", "log analysis", "integrity hashing"],
+    sheets: [
+      { title: "Files & disk", rows: [
+        { code: "file / binwalk / foremost", note: "Identify & carve" },
+        { code: "photorec image.dd", note: "Recover deleted files" },
+        { code: "fls -r -m / image.dd", note: "Walk the filesystem (Sleuth Kit)" },
+        { code: "sha256sum evidence.dd", note: "Preserve integrity / chain of custody" },
+      ]},
+      { title: "Memory (Volatility 3)", rows: [
+        { code: "vol -f mem.raw windows.pslist", note: "Running processes" },
+        { code: "vol -f mem.raw windows.cmdline", note: "Process command lines" },
+        { code: "vol -f mem.raw windows.netscan", note: "Network connections" },
+        { code: "vol -f mem.raw windows.malfind", note: "Injected / hidden code" },
+      ]},
+    ],
+    tools: ["Autopsy", "Sleuth Kit", "Volatility 3", "binwalk", "foremost", "photorec", "exiftool", "plaso", "Eric Zimmerman tools"],
+    labs: [
+      { name: "HackTheBox — Sherlocks", url: "https://www.hackthebox.com", note: "Guided DFIR investigations." },
+      { name: "Magnet Weekly CTF", url: "https://www.magnetforensics.com", note: "Real-world forensic artifact puzzles." },
+      { name: "TryHackMe — DFIR path", url: "https://tryhackme.com", note: "Memory, disk and log rooms." },
+    ],
+    defend: ["Centralise & retain logs; protect them from tampering", "Deploy EDR; keep forensic readiness runbooks", "Maintain tested backups and an IR plan", "Document chain of custody for every artifact"],
+  },
+
+  os: {
+    slug: "os", num: 9, title: "OS", tag: "systems & shell", color: "#ffb85e",
+    blurb: "Command-line fluency and OS internals. On authorized boxes (HTB/THM/VulnHub), enumerate thoroughly and understand privilege boundaries — the same knowledge hardens them.",
+    skills: ["Linux/Windows internals", "shell & scripting", "enumeration", "privilege boundaries", "permissions model", "services"],
+    sheets: [
+      { title: "Linux enumeration (authorized boxes)", rows: [
+        { code: "id; uname -a; sudo -l", note: "Who am I, kernel, sudo rights" },
+        { code: "find / -perm -4000 2>/dev/null", note: "SUID binaries (check GTFOBins)" },
+        { code: "crontab -l; ls -la /etc/cron*", note: "Scheduled jobs" },
+        { code: "ss -tulpn", note: "Listening services" },
+      ]},
+      { title: "Windows enumeration", rows: [
+        { code: "whoami /priv", note: "Token privileges" },
+        { code: "systeminfo", note: "Patch level & build" },
+        { code: "wmic service get name,pathname", note: "Unquoted service paths" },
+        { code: "cmdkey /list", note: "Saved credentials" },
+      ]},
+    ],
+    tools: ["LinPEAS / WinPEAS", "GTFOBins", "LOLBAS", "pspy", "PowerShell", "bash", "Metasploit (lab)"],
+    labs: [
+      { name: "OverTheWire — Bandit", url: "https://overthewire.org/wargames/bandit/", note: "The canonical Linux CLI on-ramp. Start here." },
+      { name: "HackTheBox / TryHackMe", url: "https://www.hackthebox.com", note: "Full authorized boxes end-to-end." },
+      { name: "VulnHub", url: "https://www.vulnhub.com", note: "Download & run vulnerable VMs locally." },
+    ],
+    defend: ["Least privilege; remove unneeded SUID & admin rights", "Patch promptly; track CIS benchmarks", "Harden services; fix unquoted paths & weak ACLs", "Monitor process creation and auth events"],
+  },
+};
+
+export const trackOrder = ["osint", "network", "splunk", "stego", "crypto", "webmobile", "genai", "forensics", "os"];
