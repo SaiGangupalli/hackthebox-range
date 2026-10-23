@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start -p 3003",
     "postinstall": "prisma generate",
-    "db:migrate": "set -a && source .env.local && set +a && prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script > prisma/init.sql && prisma db execute --file ./prisma/init.sql --schema ./prisma/schema.prisma"
+    "db:diff": "sh scripts/db.sh diff",
+    "db:apply": "sh scripts/db.sh apply"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

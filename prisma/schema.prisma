@@ -1,6 +1,7 @@
 // H@ck1h3B0x Range — scoreboard schema.
-// Shared Neon DB: every table is namespaced with the `hhb_` prefix, and
-// migrations are applied additively (never `prisma db push`). See README.
+// Shared Neon DB: everything lives in the `hhb` Postgres schema (tables keep the
+// `hhb_` prefix too). `schemas` scopes Prisma to it, so diffs can never touch
+// other apps' tables. Change it via `npm run db:diff` / `db:apply`. See README.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,6 +10,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["hhb"]
 }
 
 model User {
@@ -19,6 +21,7 @@ model User {
   solves    Solve[]
 
   @@map("hhb_user")
+  @@schema("hhb")
 }
 
 model Solve {
@@ -32,4 +35,5 @@ model Solve {
   @@unique([userId, challengeId])
   @@index([userId])
   @@map("hhb_solve")
+  @@schema("hhb")
 }

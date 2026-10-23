@@ -8,6 +8,14 @@ import { verifyPassword } from "@/lib/password";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   trustHost: true,
+  // Browsers share localhost cookies across ports, so another Auth.js app on
+  // e.g. :3002 would overwrite the default authjs.* cookies. Own names instead
+  // (options are deep-merged, so httpOnly/sameSite/secure defaults still apply).
+  cookies: {
+    sessionToken: { name: "hhb.session-token" },
+    csrfToken: { name: "hhb.csrf-token" },
+    callbackUrl: { name: "hhb.callback-url" },
+  },
   pages: { signIn: "/login" },
   providers: [
     Credentials({

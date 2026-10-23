@@ -39,7 +39,9 @@ src/
   lib/                 cryptoTools.ts, progress.ts, toast.ts, db.ts (Prisma),
                        password.ts (scrypt)
   auth.ts              Auth.js v5 config (Credentials provider)
-prisma/schema.prisma   hhb_user, hhb_solve  (hhb_-prefixed)
+prisma/schema.prisma   hhb_user, hhb_solve  (in the `hhb` Postgres schema)
+prisma/sql/            every SQL change applied to the DB, in order
+scripts/db.sh          db:diff / db:apply
 ```
 
 Track progress ("studied") is kept per-browser in `localStorage` — no account needed.
@@ -57,28 +59,34 @@ with the in-browser Lab tools), submit flags, and climb `/scoreboard`. Flags are
 stored as SHA-256 hashes and checked server-side, so answers never reach the browser.
 
 **Stack:** Auth.js v5 (Credentials + JWT sessions, scrypt password hashing — no OAuth
-provider to provision) and Prisma against the shared Neon DB. Two tables, both
-`hhb_`-prefixed: `hhb_user`, `hhb_solve`.
+provider to provision) and Prisma against the shared Neon DB. Two tables,
+`hhb_user` and `hhb_solve`, in their own `hhb` Postgres schema. `schemas = ["hhb"]` in
+`schema.prisma` scopes Prisma to it, so a diff never sees (or drops) other apps' tables.
+
+Session cookies are named `hhb.*` rather than Auth.js's default `authjs.*`: browsers
+share `localhost` cookies across ports, so another Auth.js app running locally would
+otherwise overwrite this one's session.
 
 ### One-time setup
 
 1. Put the real connection string in `.env.local` (replace `PASSWORD`). `AUTH_SECRET`
    is already generated there. Both are git-ignored.
-2. Apply the **additive** migration (creates only the two `hhb_` tables — never drops
-   anything, per the shared-DB rule):
-
-   ```bash
-   npm run db:migrate
-   # = prisma migrate diff --from-empty --to-schema-datamodel  (generates prisma/init.sql)
-   #   then prisma db execute --file prisma/init.sql
-   ```
-
-   Review `prisma/init.sql` first if you like — it contains only `CREATE TABLE hhb_*`.
+2. Bring the DB up to date by replaying `prisma/sql/*.sql` in order (on a fresh
+   database: `npm run db:diff`, review, `npm run db:apply -- init`).
 3. `npm run dev`, open `/register`, and play.
 
-> **Never run `prisma db push` on this database** — it would offer to drop other apps'
-> tables. Evolve the schema with `migrate diff` + `db execute` and strip any `DROP` of
-> tables outside the `hhb_` prefix before executing.
+### Changing the schema
+
+```bash
+npm run db:diff                  # live `hhb` schema -> schema.prisma, written to prisma/pending.sql
+npm run db:apply -- add_writeups # runs pending.sql, keeps it as prisma/sql/<ts>_add_writeups.sql
+```
+
+Read `pending.sql` before applying — `db:diff` warns if it contains a `DROP`. Generated
+diffs can't express renames or moves (they drop and recreate), so hand-edit those into
+`pending.sql` first. Commit the new `prisma/sql/` file.
+
+> **Never run `prisma db push` or `prisma migrate dev` on this database.**
 
 Without a reachable DB the scoreboard/registration degrade gracefully (friendly
 "connect the database" states), so the rest of the Range works offline.
