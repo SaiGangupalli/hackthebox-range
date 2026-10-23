@@ -19,6 +19,10 @@ export const navGroups: NavGroup[] = [
     { href: "/owasp", name: "Web Top 10", icon: "owasp" },
     { href: "/llm", name: "LLM Top 10", icon: "llm" },
   ]},
+  { g: "Compete", items: [
+    { href: "/challenges", name: "Challenges", icon: "flag" },
+    { href: "/scoreboard", name: "Scoreboard", icon: "trophy" },
+  ]},
   { g: "Lab", items: [
     { href: "/tools", name: "Lab tools", icon: "tools" },
     { href: "/resources", name: "Resources", icon: "resources" },

@@ -1,0 +1,35 @@
+// H@ck1h3B0x Range — scoreboard schema.
+// Shared Neon DB: every table is namespaced with the `hhb_` prefix, and
+// migrations are applied additively (never `prisma db push`). See README.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  handle    String   @unique
+  password  String // scrypt: "scrypt$<saltHex>$<hashHex>"
+  createdAt DateTime @default(now())
+  solves    Solve[]
+
+  @@map("hhb_user")
+}
+
+model Solve {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  points      Int
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@index([userId])
+  @@map("hhb_solve")
+}

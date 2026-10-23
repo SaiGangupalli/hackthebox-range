@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { Icon } from "./icons";
 import { navGroups } from "@/data/nav";
 import { useProgress, hydrateProgress } from "@/lib/progress";
@@ -58,6 +59,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
           <div className="top-spacer" />
+          <AuthControl />
           <button className="icon-btn" aria-label="Toggle theme" onClick={toggleTheme}>
             <Icon name="sun" />
           </button>
@@ -118,6 +120,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <BodyNavClass open={navOpen} />
     </>
   );
+}
+
+// Header auth state: handle + logout when signed in, otherwise a sign-in link.
+function AuthControl() {
+  const { data: session, status } = useSession();
+  if (status === "loading") return <span className="auth-chip skel" aria-hidden="true" />;
+  if (session?.user) {
+    return (
+      <span className="auth-chip">
+        <span className="who">{session.user.name}</span>
+        <button className="icon-btn" aria-label="Sign out" title="Sign out" onClick={() => signOut({ callbackUrl: "/" })}>
+          <Icon name="logout" />
+        </button>
+      </span>
+    );
+  }
+  return <Link className="btn auth-signin" href="/login"><Icon name="shield" />Sign in</Link>;
 }
 
 // Toggle the body.nav-open class used by the mobile drawer CSS.
