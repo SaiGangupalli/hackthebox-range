@@ -42,6 +42,10 @@ export default function LoginPage() {
         <button className="btn primary" type="submit" disabled={busy}>{busy ? "…" : "Sign in"}</button>
         <p className="auth-alt">New here? <Link href="/register">Create a handle</Link></p>
       </form>
+      <p className="auth-note">
+        <Icon name="book" />
+        <span>You don&apos;t need an account to learn — every track, lab and quiz works without one. An account is only for submitting challenge flags and appearing on the scoreboard.</span>
+      </p>
     </div>
   );
 }

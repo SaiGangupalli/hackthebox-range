@@ -3,27 +3,29 @@ import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { InlineCode } from "../InlineCode";
 import type { Task } from "@/data/labs/types";
+import { loadLab, saveLab, onLabChange } from "@/lib/labProgress";
+import { askTutor } from "@/lib/tutor";
 
 // Objectives panel shared by every practice lab. You answer each question using
-// the live tool above it; completion persists per-lab in localStorage so your
-// progress survives a reload. "Show approach" reveals the method, not the answer.
+// the live tool above it; completion persists per-lab (src/lib/labProgress) so
+// your progress survives a reload and shows on the home page. After two wrong
+// tries the approach opens on its own, so nobody stays stuck.
 export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
-  const key = `hhb_lab_${labId}`;
   const [done, setDone] = useState<boolean[]>(() => tasks.map(() => false));
   const [answers, setAnswers] = useState<string[]>(() => tasks.map(() => ""));
   const [reveal, setReveal] = useState<boolean[]>(() => tasks.map(() => false));
+  const [misses, setMisses] = useState<number[]>(() => tasks.map(() => 0));
   const [status, setStatus] = useState<(null | "wrong")[]>(() => tasks.map(() => null));
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) { const saved = JSON.parse(raw) as boolean[]; if (Array.isArray(saved) && saved.length === tasks.length) setDone(saved); }
-    } catch { /* storage blocked */ }
-  }, [key, tasks.length]);
+    const load = () => setDone(loadLab(labId, tasks.length));
+    load();
+    return onLabChange(labId, load);
+  }, [labId, tasks.length]);
 
   function persist(next: boolean[]) {
     setDone(next);
-    try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ }
+    saveLab(labId, next);
   }
 
   function submit(i: number) {
@@ -33,6 +35,9 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
       setStatus((s) => s.map((x, k) => (k === i ? null : x)));
     } else {
       setStatus((s) => s.map((x, k) => (k === i ? "wrong" : x)));
+      const n = misses[i] + 1;
+      setMisses((m) => m.map((x, k) => (k === i ? n : x)));
+      if (n >= 2) setReveal((r) => r.map((x, k) => (k === i ? true : x)));
     }
   }
 
@@ -67,10 +72,19 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
                 />
                 <button className="btn primary" onClick={() => submit(i)}>Check</button>
               </div>
-              {status[i] === "wrong" && <div className="task-msg wrong">Not quite — explore a bit more, or show the approach.</div>}
-              <button className="task-hintbtn" onClick={() => setReveal((r) => r.map((x, k) => (k === i ? !x : x)))}>
-                {reveal[i] ? "Hide approach" : "Show approach"}
-              </button>
+              {status[i] === "wrong" && (
+                <div className="task-msg wrong">
+                  {misses[i] >= 2 ? "Not yet — the approach is open below to guide you." : "Not quite. Check spelling, then look again in the tool above."}
+                </div>
+              )}
+              <span className="task-help">
+                <button className="task-hintbtn" onClick={() => setReveal((r) => r.map((x, k) => (k === i ? !x : x)))}>
+                  {reveal[i] ? "Hide approach" : "Show approach"}
+                </button>
+                <button className="task-hintbtn tutor-link" onClick={() => askTutor({ kind: "nudge", labId, index: i }, `I'm stuck on objective ${i + 1} — can you give me a nudge?`)}>
+                  <Icon name="llm" />Ask the tutor for a nudge
+                </button>
+              </span>
               {reveal[i] && (
                 <div className="task-hint">
                   <p><b>Approach:</b> <InlineCode text={t.hint} /></p>

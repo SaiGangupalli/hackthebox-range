@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Icon } from "./icons";
 import { navGroups } from "@/data/nav";
 import { useProgress, hydrateProgress } from "@/lib/progress";
+import { TutorPanel } from "./TutorPanel";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -117,19 +118,34 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="toast" ref={toastRef} />
+      <TutorPanel />
       <BodyNavClass open={navOpen} />
     </>
   );
 }
 
-// Header auth state: handle + logout when signed in, otherwise a sign-in link.
+// Header auth state: handle (linking to your profile) with your rank, plus
+// logout when signed in; otherwise a sign-in link. Rank refreshes as you move
+// around, since progress you make raises it.
 function AuthControl() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const [rank, setRank] = useState<{ rank: string; level: number } | null>(null);
+  const name = session?.user?.name;
+  useEffect(() => {
+    if (!name) { setRank(null); return; }
+    let cancelled = false;
+    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((d) => { if (!cancelled && d) setRank(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [name, pathname]);
   if (status === "loading") return <span className="auth-chip skel" aria-hidden="true" />;
   if (session?.user) {
     return (
       <span className="auth-chip">
-        <span className="who">{session.user.name}</span>
+        <Link className="who" href={`/u/${session.user.name}`} title="Your profile">
+          {session.user.name}
+          {rank && <span className={`rank-chip r${rank.level}`}>{rank.rank}</span>}
+        </Link>
         <button className="icon-btn" aria-label="Sign out" title="Sign out" onClick={() => signOut({ callbackUrl: "/" })}>
           <Icon name="logout" />
         </button>

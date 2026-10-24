@@ -24,10 +24,12 @@ export function SubmitForm({ challengeId }: { challengeId: string }) {
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
         setResult({ kind: "err", msg: "Sign in to submit flags." });
+      } else if (!res.ok && data.error) {
+        setResult({ kind: "err", msg: data.error });
       } else if (data.correct && data.already) {
         setResult({ kind: "already", msg: "Correct — already solved." });
       } else if (data.correct) {
-        setResult({ kind: "ok", msg: `Correct! +${data.points} points` });
+        setResult({ kind: "ok", msg: data.firstBlood ? `First blood! You're the first to solve it. +${data.points} points` : `Correct! +${data.points} points` });
         setFlag("");
         router.refresh();
       } else {

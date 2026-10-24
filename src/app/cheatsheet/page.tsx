@@ -1,71 +1,103 @@
-import { tracks, trackOrder } from "@/data/tracks";
+import { tracks } from "@/data/tracks";
+import { pathOrder, pathIndex } from "@/data/path";
 import { learn } from "@/data/learn";
+import { quiz } from "@/data/quiz";
 import { owasp } from "@/data/owasp";
 import { llm } from "@/data/llm";
+import { glossary, GLOSSARY_CATS } from "@/data/glossary";
 import type { Risk } from "@/data/owasp";
 import { Icon } from "@/components/icons";
 import { InlineCode } from "@/components/InlineCode";
 import { PrintButton } from "@/components/PrintButton";
 
-export const metadata = { title: "H@ck1h3B0x Range — Combined Cheatsheet" };
+export const metadata = { title: "H@ck1h3B0x Range — Cheatsheet" };
 
-// One detailed, printable reference across every track: key concepts with
-// worked examples, command cheatsheets, tools, and blue-team defenses, plus the
-// OWASP Web & LLM Top 10. "Download PDF" prints it (see @media print in globals).
+const num = (i: number) => String(i + 1).padStart(2, "0");
+
+// One printable study guide for the whole range. Every track follows the same
+// shape — overview, outcomes, concepts, commands, tools, defend, self-check —
+// then appendices for the OWASP lists and the glossary. "Download PDF" prints
+// it; the @media print rules in globals.css switch to a light, paper palette.
 export default function CheatsheetPage() {
   return (
     <div className="sheetdoc">
-      <div className="eyebrow"><Icon name="book" />complete reference</div>
-      <h1 className="view-title">Combined cheatsheet</h1>
-      <p className="lede">
-        Every track in one place — concepts explained with worked examples, command references, tools, and how to
-        defend against each. Use <b>Download PDF</b> to save it for offline study.
-      </p>
-      <div className="sheet-actions no-print">
-        <PrintButton />
-        <span className="sheet-hint">Opens your print dialog — choose “Save as PDF”.</span>
-      </div>
-
-      <div className="callout warn sheet-banner">
-        <Icon name="shield" />
-        <div><b>Authorized use only.</b> Everything here is for CTF, your own lab, or systems you have written permission to test.</div>
-      </div>
+      <header className="sheet-cover">
+        <div className="eyebrow"><Icon name="book" />study guide</div>
+        <h1 className="view-title">H@ck1h3B0x Range cheatsheet</h1>
+        <p className="lede">
+          All nine tracks in learning-path order, each laid out the same way, plus the OWASP Web &amp; LLM Top 10 and a
+          glossary. Read it here, or save it as a PDF for offline study.
+        </p>
+        <div className="sheet-actions no-print">
+          <PrintButton />
+          <span className="sheet-hint">Opens your print dialog — choose “Save as PDF”. Turn on “Background graphics” for coloured labels.</span>
+        </div>
+        <ul className="sheet-howto">
+          <li><b>Overview</b> what the track is about</li>
+          <li><b>You can</b> what you&apos;ll be able to do</li>
+          <li><b>Concepts</b> plain explanations with an example</li>
+          <li><b>Commands</b> what to type, and what it does</li>
+          <li><b>Defend</b> how to protect against it</li>
+          <li><b>Self-check</b> questions, with answers</li>
+        </ul>
+        <p className="sheet-legal"><Icon name="shield" />Authorized use only — for CTF, your own lab, or systems you have written permission to test.</p>
+      </header>
 
       <nav className="sheet-toc" aria-label="Contents">
         <div className="sheet-toc-h">Contents</div>
-        <ol>
-          {trackOrder.map((slug) => (
-            <li key={slug}><a href={`#${slug}`}>{String(tracks[slug].num).padStart(2, "0")} · {tracks[slug].title}</a></li>
-          ))}
-          <li><a href="#owasp-web">A · OWASP Web Top 10</a></li>
-          <li><a href="#owasp-llm">B · OWASP LLM Top 10</a></li>
-        </ol>
+        <ul>
+          {pathOrder.map((slug, i) => {
+            const p = pathIndex[slug];
+            return (
+              <li key={slug}>
+                <a href={`#${slug}`}>
+                  <span className="toc-n">{num(i)}</span>
+                  <span className="toc-t">{tracks[slug].title}</span>
+                  <span className="toc-m">{p.level} · {p.minutes} min</span>
+                </a>
+              </li>
+            );
+          })}
+          <li><a href="#owasp-web"><span className="toc-n">A</span><span className="toc-t">OWASP Web Top 10</span><span className="toc-m">appendix</span></a></li>
+          <li><a href="#owasp-llm"><span className="toc-n">B</span><span className="toc-t">OWASP LLM Top 10</span><span className="toc-m">appendix</span></a></li>
+          <li><a href="#glossary"><span className="toc-n">C</span><span className="toc-t">Glossary</span><span className="toc-m">{glossary.length} terms</span></a></li>
+        </ul>
       </nav>
 
-      {trackOrder.map((slug) => {
+      {pathOrder.map((slug, i) => {
         const t = tracks[slug];
+        const p = pathIndex[slug];
         const l = learn[slug];
+        const qs = quiz[slug] ?? [];
         return (
           <section className="sheet-track" id={slug} key={slug}>
-            <h2 className="sheet-h2"><span className="sheet-num">{String(t.num).padStart(2, "0")}</span>{t.title}<span className="sheet-tag">{t.tag}</span></h2>
+            <div className="sheet-head">
+              <span className="sheet-num">{num(i)}</span>
+              <div>
+                <h2>{t.title}</h2>
+                <div className="sheet-meta">{t.tag} · {p.level} · about {p.minutes} min</div>
+              </div>
+            </div>
+
+            <h3 className="sheet-h3">Overview</h3>
             <p className="sheet-blurb">{t.blurb}</p>
 
-            <div className="sheet-chips"><b>Core skills:</b> {t.skills.map((s) => <span className="chip" key={s}>{s}</span>)}</div>
+            <h3 className="sheet-h3">After this track you can</h3>
+            <ul className="sheet-outcomes">{p.outcomes.map((o) => <li key={o}>{o}</li>)}</ul>
 
             {l && (
               <>
                 <h3 className="sheet-h3">Key concepts</h3>
-                <p className="sheet-intro">{l.intro}</p>
                 <div className="sheet-concepts">
-                  {l.cards.map((c, i) => (
-                    <div className="sheet-concept" key={i}>
+                  {l.cards.map((c, k) => (
+                    <div className="sheet-concept" key={k}>
                       <h4><InlineCode text={c.q} /></h4>
                       <p><InlineCode text={c.a} /></p>
                       {c.worked && (
                         <div className="sheet-worked">
-                          <div><span className="sw-tag">example</span><code className="sw-in">{c.worked.input}</code></div>
-                          <div><span className="sw-tag out">result</span><code className="sw-out">{c.worked.output}</code></div>
-                          <div><span className="sw-tag read">reading it</span><span className="sw-read"><InlineCode text={c.worked.read} /></span></div>
+                          <div className="sw-row"><span className="sw-tag">you run</span><pre className="sw-in">{c.worked.input}</pre></div>
+                          <div className="sw-row"><span className="sw-tag t-out">you get</span><pre className="sw-out">{c.worked.output}</pre></div>
+                          <div className="sw-row"><span className="sw-tag t-read">meaning</span><p className="sw-read"><InlineCode text={c.worked.read} /></p></div>
                         </div>
                       )}
                     </div>
@@ -74,52 +106,97 @@ export default function CheatsheetPage() {
               </>
             )}
 
-            <h3 className="sheet-h3">Command cheatsheet</h3>
+            <h3 className="sheet-h3">Commands</h3>
             {t.sheets.map((sh) => (
-              <div className="sheet-cmds" key={sh.title}>
-                <div className="sheet-cmds-t">{sh.title}</div>
-                <table className="sheet-table">
-                  <tbody>
-                    {sh.rows.map((r, i) => (
-                      <tr key={i}><td className="sheet-code"><code>{r.code}</code></td><td className="sheet-note">{r.note}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <table className="sheet-table" key={sh.title}>
+                <caption>{sh.title}</caption>
+                <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+                <tbody>
+                  {sh.rows.map((r, k) => (
+                    <tr key={k}><td className="sheet-code"><code>{r.code}</code></td><td className="sheet-note">{r.note}</td></tr>
+                  ))}
+                </tbody>
+              </table>
             ))}
 
-            <h3 className="sheet-h3">Tools</h3>
-            <div className="sheet-chips">{t.tools.map((x) => <span className="chip" key={x}>{x}</span>)}</div>
+            <h3 className="sheet-h3">Tools professionals use</h3>
+            <p className="sheet-tools">{t.tools.join(" · ")}</p>
 
-            <h3 className="sheet-h3">Defend it (blue team)</h3>
+            <h3 className="sheet-h3">Defend it</h3>
             <ul className="sheet-ticks">{t.defend.map((d) => <li key={d}>{d}</li>)}</ul>
+
+            {qs.length > 0 && (
+              <>
+                <h3 className="sheet-h3">Self-check</h3>
+                <ol className="sheet-quiz">
+                  {qs.map((q) => (
+                    <li key={q.q}>
+                      <p className="sq-q">{q.q}</p>
+                      <p className="sq-a"><b>Answer:</b> {q.right}. <span>{q.why}</span></p>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
           </section>
         );
       })}
 
-      <RiskAppendix id="owasp-web" letter="A" title="OWASP Web Top 10" risks={owasp} />
-      <RiskAppendix id="owasp-llm" letter="B" title="OWASP LLM Top 10 (2025)" risks={llm} />
+      <RiskAppendix id="owasp-web" letter="A" title="OWASP Web Top 10" intro="The ten most critical web application risks (2021): what each is, how it's found on a lab target, how it's fixed, and a vulnerable-vs-fixed example." risks={owasp} />
+      <RiskAppendix id="owasp-llm" letter="B" title="OWASP LLM Top 10 (2025)" intro="The top risks for applications built on large language models, in the same format." risks={llm} />
+
+      <section className="sheet-track" id="glossary">
+        <div className="sheet-head">
+          <span className="sheet-num">C</span>
+          <div>
+            <h2>Glossary</h2>
+            <div className="sheet-meta">{glossary.length} terms in plain English</div>
+          </div>
+        </div>
+        {GLOSSARY_CATS.map((c) => (
+          <div key={c}>
+            <h3 className="sheet-h3">{c}</h3>
+            <dl className="sheet-gl">
+              {glossary.filter((g) => g.cat === c).sort((a, b) => a.term.localeCompare(b.term)).map((g) => (
+                <div key={g.term}>
+                  <dt>{g.term}</dt>
+                  <dd>{g.def}{g.eg && <span className="sheet-gl-eg"> e.g. {g.eg}</span>}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </section>
 
       <div className="sheet-foot">H@ck1h3B0x Range · VICS Security Conclave 2026 · defensive-security training · authorized use only</div>
     </div>
   );
 }
 
-function RiskAppendix({ id, letter, title, risks }: { id: string; letter: string; title: string; risks: Risk[] }) {
+function RiskAppendix({ id, letter, title, intro, risks }: { id: string; letter: string; title: string; intro: string; risks: Risk[] }) {
   return (
     <section className="sheet-track" id={id}>
-      <h2 className="sheet-h2"><span className="sheet-num">{letter}</span>{title}</h2>
+      <div className="sheet-head">
+        <span className="sheet-num">{letter}</span>
+        <div>
+          <h2>{title}</h2>
+          <div className="sheet-meta">appendix</div>
+        </div>
+      </div>
+      <p className="sheet-blurb">{intro}</p>
       <div className="sheet-risks">
         {risks.map((r) => (
           <div className="sheet-risk" key={r.c}>
             <h4><span className="sheet-risk-c">{r.c}</span>{r.n}</h4>
-            <p><b className="sr-how">What</b> <InlineCode text={r.how} /></p>
-            <p><b className="sr-test">Test</b> <InlineCode text={r.test} /></p>
-            <p><b className="sr-fix">Fix</b> <InlineCode text={r.fix} /></p>
+            <dl className="sr-rows">
+              <div><dt>What</dt><dd><InlineCode text={r.how} /></dd></div>
+              <div><dt>Find</dt><dd><InlineCode text={r.test} /></dd></div>
+              <div><dt>Fix</dt><dd><InlineCode text={r.fix} /></dd></div>
+            </dl>
             {r.example && (
               <div className="sheet-ex">
-                <div className="sheet-ex-row bad"><span>vulnerable</span><code>{r.example.bad}</code></div>
-                <div className="sheet-ex-row good"><span>fixed</span><code>{r.example.good}</code></div>
+                <div className="sheet-ex-row bad"><span>vulnerable</span><pre>{r.example.bad}</pre></div>
+                <div className="sheet-ex-row good"><span>fixed</span><pre>{r.example.good}</pre></div>
               </div>
             )}
           </div>

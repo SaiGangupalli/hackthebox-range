@@ -5,20 +5,20 @@ import { InlineCode } from "./InlineCode";
 import { learn } from "@/data/learn";
 
 // Beginner "Start here" cards for a track: a plain question, a plain answer, and
-// an optional worked example (input → output → how to read it). Collapsible so
-// the page stays scannable for people who already know the basics.
-export function Learn({ slug }: { slug: string }) {
+// an optional worked example (input → output → how to read it). Open by default
+// so newcomers see them first; people who know the basics can collapse them.
+export function Learn({ slug, heading }: { slug: string; heading?: React.ReactNode }) {
   const data = learn[slug];
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   if (!data) return null;
 
   return (
     <>
-      <div className="sec-h"><Icon name="book" />Start here — the basics</div>
+      {heading ?? <div className="sec-h"><Icon name="book" />Start here — the basics</div>}
       <p className="learn-intro">{data.intro}</p>
       <button className="btn learn-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <Icon name={open ? "circle" : "book"} />
-        {open ? "Hide the beginner cards" : `Show ${data.cards.length} beginner cards with examples`}
+        <Icon name="book" />
+        {open ? "Collapse the cards (I know this)" : `Show the ${data.cards.length} beginner cards`}
       </button>
 
       {open && (
@@ -34,11 +34,11 @@ export function Learn({ slug }: { slug: string }) {
                     <pre className="worked-in">{c.worked.input}</pre>
                   </div>
                   <div className="worked-row">
-                    <span className="worked-tag out">you get</span>
+                    <span className="worked-tag t-out">you get</span>
                     <pre className="worked-out">{c.worked.output}</pre>
                   </div>
                   <div className="worked-row">
-                    <span className="worked-tag read">how to read it</span>
+                    <span className="worked-tag t-read">how to read it</span>
                     <p className="worked-read"><InlineCode text={c.worked.read} /></p>
                   </div>
                 </div>

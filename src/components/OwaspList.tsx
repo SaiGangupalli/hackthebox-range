@@ -1,4 +1,5 @@
 "use client";
+import { useRef } from "react";
 import Link from "next/link";
 import type { Risk } from "@/data/owasp";
 import { Icon } from "./icons";
@@ -8,10 +9,23 @@ import { PromptLab } from "./labs/PromptLab";
 import { sqlLabs } from "@/data/labs/sqlLabs";
 import { promptLabs } from "@/data/labs/promptLabs";
 
+// The first clause of "how" doubles as a one-line summary on the collapsed card.
+const summary = (how: string) => how.split(/ — |\. /)[0].replace(/\.$/, "");
+
 export function OwaspList({
   list, title, sub, eyebrow,
 }: { list: Risk[]; title: string; sub: string; eyebrow: string }) {
   const labCount = list.filter((o) => o.lab).length;
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const setAll = (open: boolean) =>
+    listRef.current?.querySelectorAll<HTMLDetailsElement>("details.ow").forEach((d) => { d.open = open; });
+  const jump = (code: string) => {
+    const d = document.getElementById(code) as HTMLDetailsElement | null;
+    if (!d) return;
+    d.open = true;
+    d.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   return (
     <>
       <div className="eyebrow">{eyebrow}</div>
@@ -28,12 +42,33 @@ export function OwaspList({
         </div>
       </div>
 
-      <div className="owasp">
+      <div className="ow-index" aria-label="Jump to a risk">
+        {list.map((o) => (
+          <button key={o.c} className={`ow-idx${o.lab ? " has-lab" : ""}`} onClick={() => jump(o.c)}>
+            <span className="ow-idx-c">{o.c}</span>
+            <span className="ow-idx-n">{o.n}</span>
+            {o.lab && <span className="ow-idx-lab"><Icon name="zap" /></span>}
+          </button>
+        ))}
+      </div>
+
+      <div className="ow-legend">
+        <span className="lg how">How it works</span>
+        <span className="lg test">Find it</span>
+        <span className="lg ex">Example</span>
+        <span className="lg fix">Defend</span>
+        <span className="ow-legend-actions">
+          <button className="task-hintbtn" onClick={() => setAll(true)}>Expand all</button>
+          <button className="task-hintbtn" onClick={() => setAll(false)}>Collapse all</button>
+        </span>
+      </div>
+
+      <div className="owasp" ref={listRef}>
         {list.map((o) => (
           <details className="ow" key={o.c} id={o.c}>
             <summary>
               <span className="code">{o.c}</span>
-              <span className="ow-name">{o.n}</span>
+              <span className="ow-name">{o.n}<small>{summary(o.how)}</small></span>
               {o.lab && <span className="ow-lab-badge"><Icon name="zap" />lab</span>}
               <Icon name="caret" className="caret" />
             </summary>

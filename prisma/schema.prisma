@@ -14,11 +14,15 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  handle    String   @unique
-  password  String // scrypt: "scrypt$<saltHex>$<hashHex>"
-  createdAt DateTime @default(now())
-  solves    Solve[]
+  id         String       @id @default(cuid())
+  handle     String       @unique
+  password   String // scrypt: "scrypt$<saltHex>$<hashHex>"
+  createdAt  DateTime     @default(now())
+  solves     Solve[]
+  progress   Progress[]
+  hints      HintUnlock[]
+  votes      Vote[]
+  membership TeamMember?
 
   @@map("hhb_user")
   @@schema("hhb")
@@ -35,5 +39,76 @@ model Solve {
   @@unique([userId, challengeId])
   @@index([userId])
   @@map("hhb_solve")
+  @@schema("hhb")
+}
+
+// Learning progress for signed-in players, so it follows them across devices.
+// kind "lab" → data: boolean[] (objectives done); "quiz" → { best, total };
+// "track" → { done: boolean }. key is the lab id or track slug.
+model Progress {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String
+  key       String
+  data      Json
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, key])
+  @@map("hhb_progress")
+  @@schema("hhb")
+}
+
+// A paid hint a player opened; its cost is subtracted from their score.
+model HintUnlock {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  hint        Int
+  cost        Int
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId, hint])
+  @@map("hhb_hint_unlock")
+  @@schema("hhb")
+}
+
+// Difficulty vote (1 easy … 5 brutal), only from players who solved it.
+model Vote {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  rating      Int
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@index([challengeId])
+  @@map("hhb_vote")
+  @@schema("hhb")
+}
+
+model Team {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  code      String       @unique // join code shared by members
+  createdAt DateTime     @default(now())
+  members   TeamMember[]
+
+  @@map("hhb_team")
+  @@schema("hhb")
+}
+
+// One team per player (userId is the key).
+model TeamMember {
+  userId   String   @id
+  teamId   String
+  joinedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@map("hhb_team_member")
   @@schema("hhb")
 }

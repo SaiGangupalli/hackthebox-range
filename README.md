@@ -91,9 +91,39 @@ diffs can't express renames or moves (they drop and recreate), so hand-edit thos
 Without a reachable DB the scoreboard/registration degrade gracefully (friendly
 "connect the database" states), so the rest of the Range works offline.
 
+### AI tutor (Claude)
+
+Signed-in players get an **AI tutor** (floating "Ask the tutor" button on every page) that knows the
+page they're on, plus **Explain** on every command, **Ask for a nudge** on lab objectives, **Explain
+more** after quiz answers, and **fresh AI practice questions** on `/quiz`. All calls run server-side
+(`src/lib/ai/`) on `claude-opus-5-5` with server-side refusal fallbacks; Grok (`X_GROK_API_KEY`) is a
+backup used only when a Claude request fails. Prompts are built on the server from site content — the
+tutor never sees lab solutions, flags or writeups — and each player has hourly limits
+(`AI_TUTOR_PER_HOUR`, `AI_QUESTIONS_PER_HOUR`). See `.env.example`.
+
+The **command handbook** (`/commands`) lists the most-used commands in plain English, with an example
+and tip for each, and prints to PDF.
+
+### Community features
+
+- **Profiles, XP & ranks** — `/u/<handle>`. Signed-in learning progress (labs, quizzes, finished
+  tracks) syncs to `hhb_progress`; XP and HTB-style ranks (Noob → Omniscient) are computed from it
+  plus solved challenges. Browser-reported progress is clamped to what the content allows; the CTF
+  score only ever counts server-verified flags.
+- **Richer challenges** — solve counts, first blood, difficulty votes (`hhb_vote`, solvers only),
+  paid hints that cost points (`hhb_hint_unlock`, free once solved) and writeups shown only to solvers.
+- **Teams** — `/teams`: create a team (join code), join, leave; `TEAM_MAX` caps size (default 4).
+  Team score counts each challenge once, at the first member's solve.
+- **Badges & activity feed** — computed from the data above; nothing extra stored.
+- **Event mode** — set `EVENT_START` / `EVENT_END` (and optionally `EVENT_FREEZE`) to run a timed
+  CTF: flags are accepted only during the window, and during a freeze the scoreboard, feed and other
+  players' profiles show standings as of the freeze. Unset = always-open practice. See `.env.example`.
+
 ## Extending it further
 
 Content is data-driven — add a track, cheatsheet, or challenge by editing `src/data/*.ts`
 (challenges live in `src/data/challenges.ts`; store `sha256(flag)`, never the flag).
+To hash a new flag: `npm run flag-hash` (prompts, so the flag stays out of your shell history) — it
+prints the `flagHash` line to paste and warns if the flag is already used or isn't in `HHB{...}` form.
 Natural next steps: per-challenge solve timestamps on the board, writeups, or GitHub OAuth
 alongside the credentials provider.

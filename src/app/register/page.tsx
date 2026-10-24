@@ -54,6 +54,10 @@ export default function RegisterPage() {
         <button className="btn primary" type="submit" disabled={busy}>{busy ? "…" : "Create handle"}</button>
         <p className="auth-alt">Already registered? <Link href="/login">Sign in</Link></p>
       </form>
+      <p className="auth-note">
+        <Icon name="book" />
+        <span>You don&apos;t need an account to learn — every track, lab and quiz works without one. An account is only for submitting challenge flags and appearing on the scoreboard.</span>
+      </p>
     </div>
   );
 }

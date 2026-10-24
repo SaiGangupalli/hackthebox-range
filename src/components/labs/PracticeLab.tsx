@@ -15,7 +15,7 @@ import { cryptoLabs } from "@/data/labs/cryptoLabs";
 
 // Picks the interactive practice lab(s) for a track. Each engine is added here
 // as it comes online; tracks without one yet simply render nothing.
-export function PracticeLab({ slug }: { slug: string }) {
+export function PracticeLab({ slug, heading }: { slug: string; heading?: React.ReactNode }) {
   const shell = shellLabs[slug];
   const spl = splLabs[slug];
   const pcap = packetLabs[slug];
@@ -26,7 +26,7 @@ export function PracticeLab({ slug }: { slug: string }) {
 
   return (
     <>
-      <div className="sec-h"><Icon name="zap" />Hands-on practice</div>
+      {heading ?? <div className="sec-h"><Icon name="zap" />Hands-on practice</div>}
       {pcap && <PacketLab lab={pcap} />}
       {spl && <SplLab lab={spl} />}
       {sql && <SqlLab lab={sql} />}

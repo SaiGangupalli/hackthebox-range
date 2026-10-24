@@ -4,6 +4,7 @@ import { Icon } from "../icons";
 import { TaskList } from "./TaskList";
 import { extractEvents, runSpl, fieldSummary, type SplResult } from "@/lib/sim/spl";
 import type { SplLab as SplLabData } from "@/data/labs/splLabs";
+import { LabHowTo } from "./LabHowTo";
 
 // A miniature Splunk search over in-memory events. Everything runs in the
 // browser; the SPL subset is documented in src/lib/sim/spl.ts.
@@ -25,6 +26,7 @@ export function SplLab({ lab }: { lab: SplLabData }) {
         <span className="lab-sim">simulated · {events.length} events</span>
       </div>
       <p className="lab-intro">{lab.intro}</p>
+      <LabHowTo tool="Type a search in the bar and press Enter — or click a starter search. Click a field name to add it." />
 
       <div className="spl">
         <div className="spl-bar">

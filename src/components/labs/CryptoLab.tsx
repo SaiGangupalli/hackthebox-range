@@ -4,6 +4,7 @@ import { Icon } from "../icons";
 import { TaskList } from "./TaskList";
 import { ENCODERS, identifyHash } from "@/lib/cryptoTools";
 import type { CryptoLab as CryptoLabData } from "@/data/labs/cryptoLabs";
+import { LabHowTo } from "./LabHowTo";
 
 // Operations offered by the chaining decoder, labelled for beginners.
 const OPS: [string, string][] = [
@@ -48,6 +49,7 @@ export function CryptoLab({ lab }: { lab: CryptoLabData }) {
         <span className="lab-sim">in-browser · no key needed</span>
       </div>
       <p className="lab-intro">{lab.intro}</p>
+      <LabHowTo tool="Load a sample, pick an operation and press Apply. If the result still looks scrambled, apply another." />
 
       <div className="cryp">
         <div className="cryp-samples">

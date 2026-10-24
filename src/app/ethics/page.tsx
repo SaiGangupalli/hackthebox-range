@@ -19,12 +19,13 @@ export default function EthicsPage() {
       <p className="lede">
         H@ck1h3B0x is an ethical-hacking game. The same skills that win flags cause real harm off-scope. These are the lines.
       </p>
-      <div className="card">
-        <ul className="ticks">
-          {rules.map((r) => (
-            <li key={r.b}><span><b>{r.b}</b>{r.rest}</span></li>
-          ))}
-        </ul>
+      <div className="rules">
+        {rules.map((r, i) => (
+          <div className="rule" key={r.b}>
+            <span className="rule-n">{i + 1}</span>
+            <div><b>{r.b}</b><p>{r.rest.trim()}</p></div>
+          </div>
+        ))}
       </div>
       <div className="callout warn" style={{ marginTop: 16 }}>
         <Icon name="shield" />

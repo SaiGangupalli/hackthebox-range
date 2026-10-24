@@ -4,6 +4,7 @@ import { Icon } from "../icons";
 import { AutoTaskList } from "./AutoTaskList";
 import { reply, assemble, type Defenses } from "@/lib/sim/llm";
 import type { PromptLab as PromptLabData } from "@/data/labs/promptLabs";
+import { LabHowTo } from "./LabHowTo";
 
 type Turn = { from: "you" | "bot"; text: string; notes?: string[] };
 
@@ -43,6 +44,7 @@ export function PromptLab({ lab }: { lab: PromptLabData }) {
         <span className="lab-sim">simulated bot · no real model</span>
       </div>
       <p className="lab-intro">{lab.intro}</p>
+      <LabHowTo tool="Send the bot a message — or click a suggestion. Switch the defenses on at the top to compare." auto />
 
       <div className="llm-defs">
         {DEFS.map((d) => (
@@ -91,7 +93,7 @@ export function PromptLab({ lab }: { lab: PromptLabData }) {
         <pre className="llm-assembled">{assemble(lab.spec, lastUser, def, true)}</pre>
       )}
 
-      <AutoTaskList tasks={lab.tasks} events={events} />
+      <AutoTaskList labId={lab.id} tasks={lab.tasks} events={events} />
     </div>
   );
 }

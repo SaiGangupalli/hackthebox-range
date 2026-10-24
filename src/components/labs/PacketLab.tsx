@@ -4,6 +4,7 @@ import { Icon } from "../icons";
 import { TaskList } from "./TaskList";
 import { compileFilter, transport, type Packet } from "@/lib/sim/packets";
 import type { PacketLab as PacketLabData } from "@/data/labs/packetLabs";
+import { LabHowTo } from "./LabHowTo";
 
 const COLOR: Record<string, string> = { HTTP: "info", DNS: "warn", TLS: "ok", TCP: "muted", UDP: "muted", ICMP: "muted", FTP: "muted" };
 
@@ -29,6 +30,7 @@ export function PacketLab({ lab }: { lab: PacketLabData }) {
         <span className="lab-sim">simulated · {lab.packets.length} packets</span>
       </div>
       <p className="lab-intro">{lab.intro}</p>
+      <LabHowTo tool="Type a display filter and press Enter — or click a suggestion — then click a packet to look inside it." />
 
       <div className="pcap">
         <div className={`pcap-bar${!compiled.ok ? " bad" : applied ? " good" : ""}`}>

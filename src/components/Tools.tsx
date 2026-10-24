@@ -24,7 +24,7 @@ function Encoder() {
     catch { return "⚠ could not " + op + " that input"; }
   }, [input, op]);
   return (
-    <div className="tool">
+    <div className="tool" id="tool-encoder">
       <div className="tool-h"><Icon name="crypto" /><h3>Encoder / decoder</h3></div>
       <div className="tool-sub">Base64, Hex, URL, ROT13, binary, Morse — the everyday CTF encodings.</div>
       <div className="field">
@@ -58,7 +58,7 @@ function Cipher() {
   try { xorBack = xorFromHex(xorHex, xorKey || " "); } catch { /* ignore */ }
 
   return (
-    <div className="tool">
+    <div className="tool" id="tool-cipher">
       <div className="tool-h"><Icon name="zap" /><h3>Cipher playground</h3></div>
       <div className="tool-sub">Caesar with a live shift + 25-way brute force, Vigenère, and repeating-key XOR.</div>
       <div className="field">
@@ -114,7 +114,7 @@ function Hashing() {
     return () => { cancelled = true; };
   }, [input]);
   return (
-    <div className="tool">
+    <div className="tool" id="tool-hash">
       <div className="tool-h"><Icon name="shield" /><h3>Hash generator</h3></div>
       <div className="tool-sub">SHA-1 / 256 / 384 / 512 via the browser&apos;s Web Crypto API.</div>
       <div className="field">
@@ -137,7 +137,7 @@ function HashId() {
   const [input, setInput] = useState("5f4dcc3b5aa765d61d8327deb882cf99");
   const guesses = identifyHash(input);
   return (
-    <div className="tool">
+    <div className="tool" id="tool-hashid">
       <div className="tool-h"><Icon name="osint" /><h3>Hash identifier</h3></div>
       <div className="tool-sub">Guess a hash / token type from its shape.</div>
       <div className="field">
@@ -167,7 +167,7 @@ function Jwt() {
     return { head, body };
   }, [input]);
   return (
-    <div className="tool">
+    <div className="tool" id="tool-jwt">
       <div className="tool-h"><Icon name="webmobile" /><h3>JWT decoder</h3></div>
       <div className="tool-sub">Decode header &amp; payload. Signature is <b>not</b> verified — never trust an unverified token.</div>
       <div className="field">
@@ -232,7 +232,7 @@ function Stego() {
   useEffect(() => { drawDefaultCover(); embed(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   return (
-    <div className="tool">
+    <div className="tool" id="tool-stego">
       <div className="tool-h"><Icon name="stego" /><h3>LSB steganography</h3></div>
       <div className="tool-sub">Hide a message in the least-significant bits of an image, then extract it back — a self-contained demo of how stego works.</div>
       <div className="field">
@@ -258,12 +258,32 @@ function Stego() {
   );
 }
 
+// "Which tool do I need?" — each card says when to reach for the tool.
+const TOOL_INDEX: [string, string, string, string][] = [
+  ["tool-encoder", "crypto", "Encoder / decoder", "Text looks scrambled but uses letters, digits, % or = signs. Try decoding it."],
+  ["tool-cipher", "zap", "Cipher playground", "Letters look shifted or like nonsense words. Try Caesar, Vigenère or XOR."],
+  ["tool-hash", "shield", "Hash generator", "You need the SHA fingerprint of some text, e.g. to compare with a known hash."],
+  ["tool-hashid", "osint", "Hash identifier", "You found a long hex string and want to know what kind of hash it is."],
+  ["tool-jwt", "webmobile", "JWT decoder", "You have a token shaped like xxx.yyy.zzz and want to read what's inside."],
+  ["tool-stego", "stego", "LSB steganography", "You want to see how a message can hide inside an image's pixels."],
+];
+
 export function Tools() {
   return (
     <>
       <div className="eyebrow"><Icon name="tools" />in-browser lab · nothing leaves your device</div>
       <h1 className="view-title">Lab tools</h1>
       <p className="lede">Six safe utilities that run entirely in your browser. Great for the Crypto, Stego and Web tracks — paste a CTF string and experiment.</p>
+      <div className="sec-h"><Icon name="osint" />Which tool do I need?</div>
+      <div className="tool-index">
+        {TOOL_INDEX.map(([id, icon, name, when]) => (
+          <a key={id} className="tool-card" href={`#${id}`}>
+            <Icon name={icon} />
+            <b>{name}</b>
+            <p>{when}</p>
+          </a>
+        ))}
+      </div>
       <Encoder />
       <Cipher />
       <Hashing />

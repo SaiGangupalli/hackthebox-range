@@ -4,6 +4,7 @@ import { Icon } from "../icons";
 import { AutoTaskList } from "./AutoTaskList";
 import { login, type LoginOutcome } from "@/lib/sim/sql";
 import type { SqlLab as SqlLabData } from "@/data/labs/sqlLabs";
+import { LabHowTo } from "./LabHowTo";
 
 // A deliberately vulnerable login form next to its parameterized fix, so the
 // difference is something you do, not just read. The SQL engine runs in the
@@ -34,6 +35,7 @@ export function SqlLab({ lab }: { lab: SqlLabData }) {
         <span className="lab-sim">simulated · lab target</span>
       </div>
       <p className="lab-intro">{lab.intro}</p>
+      <LabHowTo tool="Fill in the login form (or click a sample) and press Log in. The query it builds appears on the right." auto />
 
       <div className="sqli">
         <div className="sqli-form">
@@ -69,7 +71,7 @@ export function SqlLab({ lab }: { lab: SqlLabData }) {
         </div>
       </div>
 
-      <AutoTaskList tasks={lab.tasks} events={events} />
+      <AutoTaskList labId={lab.id} tasks={lab.tasks} events={events} />
     </div>
   );
 }
