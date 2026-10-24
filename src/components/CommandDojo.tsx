@@ -4,7 +4,7 @@ import { Icon } from "./icons";
 import { InlineCode } from "./InlineCode";
 import { Terminal } from "./labs/Terminal";
 import { Shell } from "@/lib/sim/shell";
-import { drills, dojoSpec, LEVELS, DOJO_ID } from "@/data/drills";
+import { drills, drillOrder, dojoSpec, LEVELS, DOJO_ID } from "@/data/drills";
 import { passesDrill } from "@/lib/drillCheck";
 import { loadLab, saveLab, onLabChange } from "@/lib/labProgress";
 import { askTutor } from "@/lib/tutor";
@@ -27,12 +27,12 @@ export function CommandDojo() {
     const load = () => setDone(loadLab(DOJO_ID, drills.length));
     const first = loadLab(DOJO_ID, drills.length);
     setDone(first);
-    const i = first.findIndex((d) => !d);
-    setCur(i < 0 ? 0 : i);
+    setCur(drillOrder.find((k) => !first[k]) ?? drillOrder[0]);
     return onLabChange(DOJO_ID, load);
   }, []);
 
   const d = drills[cur];
+  const pos = drillOrder.indexOf(cur); // where this drill sits in the level-by-level order
   const solvedCount = done.filter(Boolean).length;
 
   function select(i: number) {
@@ -56,13 +56,13 @@ export function CommandDojo() {
   }
 
   function goNext() {
-    const after = done.findIndex((x, i) => !x && i > cur);
-    const any = done.findIndex((x) => !x);
-    select(after >= 0 ? after : any >= 0 ? any : Math.min(cur + 1, drills.length - 1));
+    const after = drillOrder.slice(pos + 1).find((k) => !done[k]);
+    const any = drillOrder.find((k) => !done[k]);
+    select(after ?? any ?? drillOrder[Math.min(pos + 1, drillOrder.length - 1)]);
   }
 
   const levelStats = LEVELS.map((name, i) => {
-    const ids = drills.map((x, k) => (x.level === i + 1 ? k : -1)).filter((k) => k >= 0);
+    const ids = drillOrder.filter((k) => drills[k].level === i + 1);
     return { name, n: i + 1, total: ids.length, solved: ids.filter((k) => done[k]).length, first: ids[0] };
   });
   const allDone = solvedCount === drills.length;
@@ -86,7 +86,7 @@ export function CommandDojo() {
 
       <div className={`drill${done[cur] ? " solved" : ""}`}>
         <div className="drill-top">
-          <span className="drill-lv">Level {d.level} · {LEVELS[d.level - 1]} · drill {cur + 1} of {drills.length}</span>
+          <span className="drill-lv">Level {d.level} · {LEVELS[d.level - 1]} · drill {pos + 1} of {drills.length}</span>
           {done[cur] && <span className="ok-tag"><Icon name="check" />done</span>}
         </div>
         <h2>{d.title}</h2>
@@ -129,10 +129,10 @@ export function CommandDojo() {
         {levelStats.map((l) => (
           <div key={l.n} className="dlist-level">
             <div className="dlist-h">Level {l.n} · {l.name}</div>
-            {drills.map((x, k) => x.level === l.n && (
-              <button key={x.id} className={`dlist-item${k === cur ? " on" : ""}${done[k] ? " done" : ""}`} onClick={() => select(k)}>
-                <span className="dli-mark">{done[k] ? <Icon name="check" /> : k + 1}</span>
-                <span>{x.title}</span>
+            {drillOrder.map((k, n) => drills[k].level === l.n && (
+              <button key={drills[k].id} className={`dlist-item${k === cur ? " on" : ""}${done[k] ? " done" : ""}`} onClick={() => select(k)}>
+                <span className="dli-mark">{done[k] ? <Icon name="check" /> : n + 1}</span>
+                <span>{drills[k].title}</span>
               </button>
             ))}
           </div>

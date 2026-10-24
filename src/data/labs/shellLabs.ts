@@ -108,13 +108,7 @@ const forSpec: ShellSpec = {
     "/evidence/deploy_history.log": histLog,
     "/evidence/README": "Preserved copies. Record a hash before you work, then reconstruct: who got in, from where, and what they did first.\n",
   },
-  dirs: ["/evidence"],
-  programs: {
-    sha256sum: {
-      "auth.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  auth.log",
-      "/evidence/auth.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  auth.log",
-    },
-  },
+  dirs: ["/evidence"], // sha256sum is a real builtin, so the hash matches the file
 };
 
 // ── OSINT: pull a target's public footprint from canned recon tools ──────────

@@ -1,5 +1,5 @@
 "use client";
-import { loadLab, saveLab } from "./labProgress";
+import { loadLab, readLab, saveLab } from "./labProgress";
 import { saveQuiz, readQuiz } from "./quizProgress";
 import { mergeTracks, resetTracks, doneTracks } from "./progress";
 
@@ -65,7 +65,8 @@ export async function startSync(userId: string) {
     const tracks: string[] = [];
     for (const it of items) {
       if (it.kind === "lab" && Array.isArray(it.data)) {
-        const local = loadLab(it.key, it.data.length);
+        // Merge at the longer length so neither copy's later objectives are cut off.
+        const local = loadLab(it.key, Math.max(it.data.length, readLab(it.key).total));
         saveLab(it.key, local.map((d, i) => d || Boolean((it.data as unknown[])[i])));
       } else if (it.kind === "quiz") {
         const d = it.data as { best?: number; total?: number };

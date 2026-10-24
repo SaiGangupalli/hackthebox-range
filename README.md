@@ -102,7 +102,10 @@ tutor never sees lab solutions, flags or writeups — and each player has hourly
 (`AI_TUTOR_PER_HOUR`, `AI_QUESTIONS_PER_HOUR`). See `.env.example`.
 
 The **command handbook** (`/commands`) lists the most-used commands in plain English, with an example
-and tip for each, and prints to PDF.
+and tip for each, and prints to PDF. The **command dojo** (`/commands/practice`) has 66 graded drills
+in 12 levels, from `pwd` to a full incident triage, played in the simulated terminal (`src/lib/sim/shell.ts`).
+Drills live in `src/data/drills.ts`; add new ones at the **end** of the list (progress is saved per
+position) and give them a `level` — the page shows them grouped by level.
 
 ### Community features
 

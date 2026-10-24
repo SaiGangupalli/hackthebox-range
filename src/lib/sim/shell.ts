@@ -3,6 +3,8 @@
 // Binary files are latin1 strings (one char = one byte), so xxd/file/binwalk see
 // real magic bytes.
 
+import { sha256Hex } from "./hash";
+
 export type FileMeta = {
   mode?: string; // ls-style, e.g. "-rwsr-xr-x" or "drwx------"
   owner?: string;
@@ -26,6 +28,9 @@ export type ShellSpec = {
   // tried as the full argument string, then each operand (resolved path, then
   // literal), then "*".
   programs?: Record<string, Record<string, string>>;
+  procs?: { user: string; pid: number; cmd: string; start?: string; cpu?: string }[]; // shown by ps aux
+  ports?: { port: number; addr?: string; proc: string; pid: number }[]; // listening TCP ports, shown by ss -tln
+  date?: string; // `date` output
   motd?: string;
   suggest?: string[]; // clickable starter commands
 };
@@ -33,7 +38,7 @@ export type ShellSpec = {
 export type RunResult = { out: string; clear?: boolean };
 
 type Res = { out: string; err: string; code: number };
-type Cmd = { argv: string[]; quiet: boolean; merge: boolean; redirect?: { path: string; append: boolean } };
+type Cmd = { argv: string[]; quiet: boolean; merge: boolean; redirect?: { path: string; append: boolean }; input?: string };
 type Step = { pipeline: Cmd[]; sep: string };
 type Tok = { t: "w"; v: string; glob: boolean } | { t: "op"; v: string };
 type Builtin = (sh: Shell, args: string[], stdin: string, tty: boolean) => Res;
@@ -43,6 +48,12 @@ export const HELP: Record<string, [string, string]> = {
   ls: ["list files in a folder (-l details, -a show hidden files)", "ls -la"],
   cd: ["change folder (cd .. goes up one level)", "cd /var/log"],
   pwd: ["print the folder you are in", "pwd"],
+  mkdir: ["make a new folder (-p also makes any missing parent folders)", "mkdir evidence"],
+  touch: ["create an empty file (or update an existing file's time)", "touch case-notes.txt"],
+  cp: ["copy a file — to a new name, or into a folder", "cp auth.log evidence/"],
+  mv: ["move or rename a file or folder", "mv draft.txt final.txt"],
+  rm: ["delete files (-r for folders) — there is no recycle bin", "rm scratch.tmp"],
+  chmod: ["change who may read, write or run a file (600, 644, 755, +x…)", "chmod 600 secret.txt"],
   cat: ["print a file's contents", "cat notes.txt"],
   head: ["show the first lines of a file (-n N)", "head -n 5 access.log"],
   tail: ["show the last lines of a file (-n N)", "tail -n 5 access.log"],
@@ -52,6 +63,12 @@ export const HELP: Record<string, [string, string]> = {
   uniq: ["merge repeated neighbouring lines (-c counts them) — sort first!", "sort ips.txt | uniq -c"],
   cut: ["pick columns (-d delimiter, -f field numbers)", "cut -d: -f1 /etc/passwd"],
   awk: ["print columns, e.g. '{print $1}' = first word of each line", "awk '{print $1}' access.log"],
+  tr: ["swap or delete characters — reads from a pipe or < file (-d deletes)", "tr a-z A-Z < notes.txt"],
+  sed: ["edit text as it flows past: s/old/new/ replaces, -n '3,5p' prints lines 3–5", "sed 's/ERROR/ALERT/' app.log"],
+  rev: ["reverse each line, character by character", "rev backwards.txt"],
+  tee: ["show output on screen AND save it to a file (-a adds to the end)", "grep Failed auth.log | tee failed.txt"],
+  diff: ["show the lines that differ between two files (< first file, > second)", "diff old.conf new.conf"],
+  sha256sum: ["print a file's SHA-256 fingerprint (-c checks a list of them)", "sha256sum tool.sh"],
   find: ["search for files (-name, -type f|d, -perm -4000, -user, -writable)", "find / -perm -4000 2>/dev/null"],
   file: ["identify a file's real type from its first bytes", "file photo.jpg"],
   strings: ["print readable text buried inside a binary file", "strings image.png"],
@@ -60,10 +77,14 @@ export const HELP: Record<string, [string, string]> = {
   unzip: ["extract a zip archive (-l only lists it)", "unzip -l archive.zip"],
   base64: ["encode text as Base64, or decode with -d", "echo aGVsbG8= | base64 -d"],
   echo: ["print text", "echo hello"],
+  ps: ["list running programs (aux = every user's, with details)", "ps aux"],
+  ss: ["list network ports (-tln = listening TCP ports as numbers, -p adds the program)", "ss -tlnp"],
   id: ["show your user, group and extra groups", "id"],
   whoami: ["show your username", "whoami"],
   uname: ["show the OS / kernel (-a = everything)", "uname -a"],
   hostname: ["show the machine's name", "hostname"],
+  date: ["show the current date and time", "date"],
+  which: ["show where a command's program lives", "which grep"],
   history: ["list the commands you've typed", "history"],
   clear: ["clear the screen", "clear"],
 };
@@ -208,12 +229,174 @@ function awkPrint(expr: string, get: (n: number) => string, nf: number): string 
   }).join(" ");
 }
 
+// chmod: apply "600" / "4755" / "u+x,go-w" / "+x" to an ls-style mode string.
+// Returns null for a mode this lab doesn't understand.
+export function applyMode(mode: string, spec: string): string | null {
+  const b = [1, 4, 7].map((i) => ({ r: mode[i] === "r", w: mode[i + 1] === "w", x: /[xst]/.test(mode[i + 2]) }));
+  const sp = [/[sS]/.test(mode[3]), /[sS]/.test(mode[6]), /[tT]/.test(mode[9])]; // setuid, setgid, sticky
+  if (/^[0-7]{3,4}$/.test(spec)) {
+    const d = spec.padStart(4, "0").split("").map(Number);
+    for (let i = 0; i < 3; i++) b[i] = { r: !!(d[i + 1] & 4), w: !!(d[i + 1] & 2), x: !!(d[i + 1] & 1) };
+    sp[0] = !!(d[0] & 4); sp[1] = !!(d[0] & 2); sp[2] = !!(d[0] & 1);
+  } else {
+    for (const clause of spec.split(",")) {
+      const m = /^([ugoa]*)([+\-=])([rwxst]*)$/.exec(clause);
+      if (!m) return null;
+      const who = (m[1] || "a").replace("a", "ugo");
+      for (const [i, c] of ["u", "g", "o"].entries()) {
+        if (!who.includes(c)) continue;
+        const set = (on: boolean) => {
+          for (const p of ["r", "w", "x"] as const) if (m[3].includes(p)) b[i][p] = on;
+          if (m[3].includes("s") && i < 2) sp[i] = on;
+          if (m[3].includes("t") && i === 2) sp[2] = on;
+        };
+        if (m[2] === "=") { b[i] = { r: false, w: false, x: false }; if (i < 2) sp[i] = false; }
+        set(m[2] !== "-");
+      }
+    }
+  }
+  return mode[0] + b.map((p, i) => {
+    const s = i === 2 ? "t" : "s";
+    return (p.r ? "r" : "-") + (p.w ? "w" : "-") + (sp[i] ? (p.x ? s : s.toUpperCase()) : p.x ? "x" : "-");
+  }).join("");
+}
+
+// tr character sets: ranges (a-z), classes ([:upper:]) and \n \t escapes.
+function trSet(s: string): string[] {
+  const classes: Record<string, string> = { lower: "a-z", upper: "A-Z", digit: "0-9", alpha: "a-zA-Z", alnum: "a-zA-Z0-9", space: " \t\n" };
+  s = s.replace(/\[:(\w+):\]/g, (m, c: string) => classes[c] ?? m);
+  const toks: { c: string; esc: boolean }[] = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "\\" && i + 1 < s.length) { const n = s[++i]; toks.push({ c: n === "n" ? "\n" : n === "t" ? "\t" : n, esc: true }); }
+    else toks.push({ c: s[i], esc: false });
+  }
+  const out: string[] = [];
+  for (let i = 0; i < toks.length; i++) {
+    const dash = toks[i + 1], end = toks[i + 2];
+    if (dash && end && dash.c === "-" && !dash.esc) {
+      for (let x = toks[i].c.charCodeAt(0); x <= end.c.charCodeAt(0); x++) out.push(String.fromCharCode(x));
+      i += 2;
+    } else out.push(toks[i].c);
+  }
+  return out;
+}
+
+// sed: a small, faithful subset — s/old/new/[gip], p and d, with an optional
+// address (N, $, /regex/) or range (N,M · /a/,/b/).
+type SedAddr = { line: number } | { last: true } | { re: RegExp };
+type SedCmd = { a1: SedAddr | null; a2: SedAddr | null; op: "s" | "p" | "d"; re?: RegExp; repl?: string; print?: boolean };
+
+function sedRepl(r: string): string {
+  let s = "";
+  for (let i = 0; i < r.length; i++) {
+    const c = r[i];
+    if (c === "\\" && i + 1 < r.length) { const n = r[++i]; s += /\d/.test(n) ? "$" + n : n === "n" ? "\n" : n === "$" ? "$$" : n; continue; }
+    s += c === "&" ? "$&" : c === "$" ? "$$" : c;
+  }
+  return s;
+}
+
+function parseSed(script: string, ere: boolean): SedCmd[] {
+  const cmds: SedCmd[] = [];
+  let i = 0;
+  const reOf = (src: string, fl = "") => new RegExp(ere ? src : breToJs(src), fl);
+  const until = (d: string) => {
+    let s = "";
+    while (i < script.length && script[i] !== d) {
+      if (script[i] === "\\" && i + 1 < script.length) { s += script[i + 1] === d ? d : script[i] + script[i + 1]; i += 2; continue; }
+      s += script[i++];
+    }
+    if (script[i] !== d) throw new Error("sed: unterminated command — did you close it with a final / ?");
+    i++;
+    return s;
+  };
+  const addr = (): SedAddr | null => {
+    if (/\d/.test(script[i] ?? "")) { let n = ""; while (/\d/.test(script[i] ?? "")) n += script[i++]; return { line: +n }; }
+    if (script[i] === "$") { i++; return { last: true }; }
+    if (script[i] === "/") { i++; return { re: reOf(until("/")) }; }
+    return null;
+  };
+  while (i < script.length) {
+    while (/[\s;]/.test(script[i] ?? "")) i++;
+    if (i >= script.length) break;
+    const a1 = addr();
+    let a2: SedAddr | null = null;
+    if (a1 && script[i] === ",") { i++; a2 = addr(); if (!a2) throw new Error("sed: a range needs an end, e.g. 3,5p"); }
+    while (script[i] === " ") i++;
+    const op = script[i++];
+    if (op === "s") {
+      const d = script[i++];
+      if (!d) throw new Error("sed: s needs a pattern, e.g. s/old/new/");
+      const pat = until(d), repl = until(d);
+      let fl = "";
+      while (/[gipI]/.test(script[i] ?? "")) fl += script[i++];
+      cmds.push({ a1, a2, op: "s", re: reOf(pat, (fl.includes("g") ? "g" : "") + (/[iI]/.test(fl) ? "i" : "")), repl: sedRepl(repl), print: fl.includes("p") });
+    } else if (op === "p" || op === "d") cmds.push({ a1, a2, op });
+    else throw new Error(`sed: this lab supports s/old/new/, p and d (e.g. sed -n '3,5p' file)${op ? ` — not '${op}'` : ""}`);
+  }
+  return cmds;
+}
+
+function runSed(cmds: SedCmd[], data: string, quiet: boolean): string {
+  const ls = lines(data);
+  const out: string[] = [];
+  const inRange = cmds.map(() => false);
+  ls.forEach((line, idx) => {
+    const n = idx + 1, last = idx === ls.length - 1;
+    let cur = line, deleted = false;
+    const hit = (a: SedAddr) => ("line" in a ? a.line === n : "last" in a ? last : ((a.re.lastIndex = 0), a.re.test(cur)));
+    for (let k = 0; k < cmds.length && !deleted; k++) {
+      const c = cmds[k];
+      let sel = true;
+      if (c.a1 && c.a2) {
+        if (inRange[k]) { if ("line" in c.a2 ? n >= c.a2.line : hit(c.a2)) inRange[k] = false; }
+        else if (hit(c.a1)) inRange[k] = !("line" in c.a2 && c.a2.line <= n);
+        else sel = false;
+      } else if (c.a1) sel = hit(c.a1);
+      if (!sel) continue;
+      if (c.op === "d") deleted = true;
+      else if (c.op === "p") out.push(cur);
+      else {
+        c.re!.lastIndex = 0;
+        if (c.re!.test(cur)) { c.re!.lastIndex = 0; cur = cur.replace(c.re!, c.repl!); if (c.print) out.push(cur); }
+      }
+    }
+    if (!deleted && !quiet) out.push(cur);
+  });
+  return text(out);
+}
+
+// Normal-format diff of two line lists (the classic "3c3 / < old / --- / > new").
+function diffLines(A: string[], B: string[]): string[] {
+  const m = A.length, n = B.length;
+  const L = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const r = (s: number, e: number) => (e - s === 1 ? `${s + 1}` : `${s + 1},${e}`);
+  const out: string[] = [];
+  let i = 0, j = 0;
+  while (i < m || j < n) {
+    if (i < m && j < n && A[i] === B[j]) { i++; j++; continue; }
+    const i1 = i, j1 = j;
+    while ((i < m || j < n) && !(i < m && j < n && A[i] === B[j])) {
+      if (i < m && (j >= n || L[i + 1][j] >= L[i][j + 1])) i++; else j++;
+    }
+    const del = A.slice(i1, i), add = B.slice(j1, j);
+    if (del.length && add.length) out.push(`${r(i1, i)}c${r(j1, j)}`, ...del.map((l) => "< " + l), "---", ...add.map((l) => "> " + l));
+    else if (del.length) out.push(`${r(i1, i)}d${j1}`, ...del.map((l) => "< " + l));
+    else out.push(`${i1}a${r(j1, j)}`, ...add.map((l) => "> " + l));
+  }
+  return out;
+}
+
+const SERVICE: Record<number, string> = { 22: "ssh", 25: "smtp", 53: "domain", 80: "http", 443: "https", 3306: "mysql", 5432: "postgresql", 8080: "http-alt" };
+
 export class Shell {
   spec: ShellSpec;
   cwd: string;
   history: string[] = [];
   files: Map<string, string>;
   dirs: Set<string>;
+  modes = new Map<string, string>(); // permissions changed with chmod
 
   constructor(spec: ShellSpec) {
     this.spec = spec;
@@ -248,7 +431,7 @@ export class Shell {
     const mine = p === home || p.startsWith(home + "/") || p.startsWith("/tmp/");
     const owner = m.owner ?? (mine ? this.spec.user : "root");
     return {
-      mode: m.mode ?? (this.dirs.has(p) ? "drwxr-xr-x" : "-rw-r--r--"),
+      mode: this.modes.get(p) ?? m.mode ?? (this.dirs.has(p) ? "drwxr-xr-x" : "-rw-r--r--"),
       owner,
       group: m.group ?? owner,
       mtime: m.mtime ?? "Oct 23 09:14",
@@ -301,16 +484,45 @@ export class Shell {
     return { data: this.files.get(p)! };
   }
 
-  // Files may only be created under $HOME and /tmp, like an unprivileged user.
+  // Files may only be created, changed or removed under $HOME and /tmp, like an
+  // unprivileged user.
+  ownArea(p: string): boolean {
+    return p.startsWith(this.spec.home + "/") || p.startsWith("/tmp/");
+  }
+
+  // Why a file can't be written at absolute path p ("" if it can).
+  cantWrite(p: string): string {
+    if (this.dirs.has(p)) return "Is a directory";
+    if (!this.ownArea(p)) return "Permission denied";
+    if (!this.dirs.has(parentOf(p))) return this.files.has(parentOf(p)) ? "Not a directory" : "No such file or directory";
+    if (this.files.has(p) && !this.writable(p)) return "Permission denied";
+    return "";
+  }
+
   write(path: string, data: string, append: boolean): string {
     if (path === "/dev/null") return "";
     const p = this.resolve(path);
-    if (this.dirs.has(p)) return `bash: ${path}: Is a directory\n`;
-    const home = this.spec.home;
-    if (!(p.startsWith(home + "/") || p.startsWith("/tmp/"))) return `bash: ${path}: Permission denied\n`;
-    if (!this.dirs.has(parentOf(p))) return `bash: ${path}: No such file or directory\n`;
+    const why = this.cantWrite(p);
+    if (why) return `bash: ${path}: ${why}\n`;
     this.files.set(p, append ? (this.files.get(p) ?? "") + data : data);
     return "";
+  }
+
+  removeTree(p: string) {
+    const under = (k: string) => k === p || k.startsWith(p + "/");
+    for (const k of [...this.files.keys()]) if (under(k)) this.files.delete(k);
+    for (const d of [...this.dirs]) if (under(d)) this.dirs.delete(d);
+    for (const k of [...this.modes.keys()]) if (under(k)) this.modes.delete(k);
+  }
+
+  // Move a file or folder (and everything inside it) from one path to another.
+  moveTree(from: string, to: string) {
+    const re = (k: string) => (k === from ? to : k.startsWith(from + "/") ? to + k.slice(from.length) : null);
+    for (const [k, v] of [...this.files]) { const n = re(k); if (n) { this.files.delete(k); this.files.set(n, v); } }
+    for (const d of [...this.dirs]) { const n = re(d); if (n) { this.dirs.delete(d); this.dirs.add(n); } }
+    for (const [k, v] of [...this.modes]) { const n = re(k); if (n) { this.modes.delete(k); this.modes.set(n, v); } }
+    const c = re(this.cwd);
+    if (c) this.cwd = c;
   }
 
   run(line: string): RunResult {
@@ -335,6 +547,11 @@ export class Shell {
     let stdin = "", errs = "", code = 0;
     cmds.forEach((c, i) => {
       const tty = i === cmds.length - 1 && !c.redirect;
+      if (c.input !== undefined) {
+        const f = this.readFile(c.input, "bash");
+        if ("err" in f) { errs += f.err; stdin = ""; code = 1; return; }
+        stdin = f.data;
+      }
       let r: Res;
       try { r = this.exec(c.argv, stdin, tty); } catch (e) { r = fail((e as Error).message); }
       let out = r.out;
@@ -383,6 +600,7 @@ export class Shell {
         const n = toks[++i];
         if (!n || n.t !== "w") throw new Error("syntax error near unexpected token `newline'");
         if (t.v === "2>") cur.quiet = true;
+        else if (t.v === "<") cur.input = n.v;
         else cur.redirect = { path: n.v, append: t.v === ">>" };
         lastOp = "";
       }
@@ -404,12 +622,12 @@ export class Shell {
       if (line.startsWith("2>&1", i)) { toks.push({ t: "op", v: "2>&1" }); i += 4; continue; }
       if (two === "2>" && (i === 0 || /\s/.test(line[i - 1]))) { toks.push({ t: "op", v: "2>" }); i += 2; continue; }
       if (two === "&&" || two === "||" || two === ">>") { toks.push({ t: "op", v: two }); i += 2; continue; }
-      if (c === "|" || c === ";" || c === ">") { toks.push({ t: "op", v: c }); i++; continue; }
+      if (c === "|" || c === ";" || c === ">" || c === "<") { toks.push({ t: "op", v: c }); i++; continue; }
       let v = "", glob = false;
       if (c === "~" && (i + 1 === line.length || line[i + 1] === "/" || /\s/.test(line[i + 1]))) { v = this.spec.home; i++; }
       while (i < line.length) {
         const ch = line[i];
-        if (ch === " " || ch === "\t" || ch === "|" || ch === ";" || ch === ">" || (ch === "&" && line[i + 1] === "&")) break;
+        if (ch === " " || ch === "\t" || ch === "|" || ch === ";" || ch === ">" || ch === "<" || (ch === "&" && line[i + 1] === "&")) break;
         if (ch === "'") {
           const j = line.indexOf("'", i + 1);
           if (j < 0) throw new Error("unexpected EOF while looking for matching `''");
@@ -868,5 +1086,271 @@ const BUILTINS: Record<string, Builtin> = {
       for (const d of denied) err += `find: '${d}': Permission denied\n`;
     }
     return { out: text(out), err, code: err ? 1 : 0 };
+  },
+
+  // ── Create and organise files ──────────────────────────────────────────────
+  mkdir(sh, args) {
+    const { flags, rest } = parseArgs(args);
+    if (!rest.length) return fail("mkdir: missing operand — e.g. mkdir evidence");
+    let err = "";
+    for (const a of rest) {
+      const p = sh.resolve(a);
+      if (sh.files.has(p) || (sh.dirs.has(p) && !flags.p)) { err += `mkdir: cannot create directory '${a}': File exists\n`; continue; }
+      if (sh.dirs.has(p)) continue;
+      if (!sh.ownArea(p)) { err += `mkdir: cannot create directory '${a}': Permission denied\n`; continue; }
+      const chain: string[] = [];
+      let d = p;
+      for (; !sh.dirs.has(d); d = parentOf(d)) chain.push(d);
+      if (chain.length > 1 && !flags.p) { err += `mkdir: cannot create directory '${a}': No such file or directory (add -p to make the parent folders too)\n`; continue; }
+      if (chain.some((c) => sh.files.has(c))) { err += `mkdir: cannot create directory '${a}': Not a directory\n`; continue; }
+      chain.forEach((c) => sh.dirs.add(c));
+    }
+    return { out: "", err, code: err ? 1 : 0 };
+  },
+
+  touch(sh, args) {
+    const { rest } = parseArgs(args);
+    if (!rest.length) return fail("touch: missing file operand — e.g. touch notes.txt");
+    let err = "";
+    for (const a of rest) {
+      const p = sh.resolve(a);
+      if (sh.files.has(p) || sh.dirs.has(p)) continue;
+      const why = sh.cantWrite(p);
+      if (why) err += `touch: cannot touch '${a}': ${why}\n`;
+      else sh.files.set(p, "");
+    }
+    return { out: "", err, code: err ? 1 : 0 };
+  },
+
+  cp(sh, args) {
+    const { flags, rest } = parseArgs(args);
+    if (rest.length < 2) return fail("cp: missing destination — e.g. cp auth.log evidence/");
+    const dest = rest.pop()!;
+    const dp = sh.resolve(dest);
+    const intoDir = sh.dirs.has(dp);
+    if (rest.length > 1 && !intoDir) return fail(`cp: target '${dest}' is not a directory`);
+    let err = "";
+    for (const s of rest) {
+      const sp = sh.resolve(s);
+      if (sh.dirs.has(sp)) { err += flags.r || flags.R ? `cp: copying whole folders isn't supported in this lab — copy the files inside instead\n` : `cp: -r not specified; omitting directory '${s}'\n`; continue; }
+      if (!sh.files.has(sp)) { err += `cp: cannot stat '${s}': No such file or directory\n`; continue; }
+      const r = sh.readFile(s, "cp");
+      if ("err" in r) { err += `cp: cannot open '${s}' for reading: Permission denied\n`; continue; }
+      const target = intoDir ? `${dp === "/" ? "" : dp}/${baseOf(sp)}` : dp;
+      if (target === sp) { err += `cp: '${s}' and '${dest}' are the same file\n`; continue; }
+      const why = sh.cantWrite(target);
+      if (why) { err += `cp: cannot create regular file '${dest}': ${why}\n`; continue; }
+      sh.files.set(target, r.data);
+    }
+    return { out: "", err, code: err ? 1 : 0 };
+  },
+
+  mv(sh, args) {
+    const { rest } = parseArgs(args);
+    if (rest.length < 2) return fail("mv: missing destination — e.g. mv draft.txt final.txt");
+    const dest = rest.pop()!;
+    const dp = sh.resolve(dest);
+    const intoDir = sh.dirs.has(dp);
+    if (rest.length > 1 && !intoDir) return fail(`mv: target '${dest}' is not a directory`);
+    let err = "";
+    for (const s of rest) {
+      const sp = sh.resolve(s);
+      if (!sh.files.has(sp) && !sh.dirs.has(sp)) { err += `mv: cannot stat '${s}': No such file or directory\n`; continue; }
+      if (!sh.ownArea(sp)) { err += `mv: cannot move '${s}': Permission denied\n`; continue; }
+      const target = intoDir ? `${dp === "/" ? "" : dp}/${baseOf(sp)}` : dp;
+      if (target === sp) { err += `mv: '${s}' and '${dest}' are the same file\n`; continue; }
+      if (sh.dirs.has(sp)) {
+        if (target.startsWith(sp + "/")) { err += `mv: cannot move '${s}' to a subdirectory of itself\n`; continue; }
+        if (sh.files.has(target) || sh.dirs.has(target)) { err += `mv: cannot move '${s}' to '${dest}': File exists\n`; continue; }
+        if (!sh.ownArea(target) || !sh.dirs.has(parentOf(target))) { err += `mv: cannot move '${s}' to '${dest}': ${sh.ownArea(target) ? "No such file or directory" : "Permission denied"}\n`; continue; }
+      } else {
+        const why = sh.cantWrite(target);
+        if (why) { err += `mv: cannot move '${s}' to '${dest}': ${why}\n`; continue; }
+        sh.files.delete(target);
+        sh.modes.delete(target);
+      }
+      sh.moveTree(sp, target);
+    }
+    return { out: "", err, code: err ? 1 : 0 };
+  },
+
+  rm(sh, args) {
+    const { flags, rest } = parseArgs(args);
+    if (!rest.length) return fail("rm: missing operand — e.g. rm scratch.tmp");
+    let err = "";
+    for (const a of rest) {
+      const p = sh.resolve(a);
+      if (!sh.files.has(p) && !sh.dirs.has(p)) { if (!flags.f) err += `rm: cannot remove '${a}': No such file or directory\n`; continue; }
+      if (sh.dirs.has(p) && !(flags.r || flags.R)) { err += `rm: cannot remove '${a}': Is a directory (use rm -r for folders)\n`; continue; }
+      if (!sh.ownArea(p)) { err += `rm: cannot remove '${a}': Permission denied\n`; continue; }
+      sh.removeTree(p);
+    }
+    return { out: "", err, code: err ? 1 : 0 };
+  },
+
+  chmod(sh, args) {
+    // Not parseArgs: a mode like -x would look like a flag.
+    const ops = args.filter((a) => a !== "-R");
+    if (ops.length < 2) return fail("chmod: missing operand — e.g. chmod 600 secret.txt or chmod +x script.sh");
+    const [mode, ...targets] = ops;
+    let err = "";
+    for (const a of targets) {
+      const p = sh.resolve(a);
+      if (!sh.canReach(p) || (!sh.files.has(p) && !sh.dirs.has(p))) { err += `chmod: cannot access '${a}': No such file or directory\n`; continue; }
+      const m = sh.meta(p);
+      if (m.owner !== sh.spec.user) { err += `chmod: changing permissions of '${a}': Operation not permitted\n`; continue; }
+      const next = applyMode(m.mode, mode);
+      if (!next) return fail(`chmod: invalid mode: '${mode}' — try 644, 600, 755 or +x`);
+      sh.modes.set(p, next);
+    }
+    return { out: "", err, code: err ? 1 : 0 };
+  },
+
+  // ── Change text ────────────────────────────────────────────────────────────
+  tr(_sh, args, stdin) {
+    const flags = new Set<string>();
+    let i = 0;
+    for (; i < args.length && /^-[ds]+$/.test(args[i]); i++) for (const f of args[i].slice(1)) flags.add(f);
+    const sets = args.slice(i);
+    const max = flags.has("d") && !flags.has("s") ? 1 : 2;
+    if (sets.length > max) return fail(`tr: extra operand '${sets[max]}'\ntr only reads from a pipe or <, e.g. tr a-z A-Z < notes.txt  or  cat notes.txt | tr a-z A-Z`);
+    if (!sets.length || (!flags.size && sets.length < 2)) return fail("tr: missing operand — e.g. tr a-z A-Z < notes.txt");
+    let data = stdin;
+    if (flags.has("d")) {
+      const del = new Set(trSet(sets[0]));
+      data = [...data].filter((c) => !del.has(c)).join("");
+    } else if (sets.length === 2) {
+      const from = trSet(sets[0]), to = trSet(sets[1]);
+      const map = new Map(from.map((c, k) => [c, to[Math.min(k, to.length - 1)] ?? ""]));
+      data = [...data].map((c) => map.get(c) ?? c).join("");
+    }
+    if (flags.has("s")) {
+      const sq = new Set(trSet(sets[sets.length - 1]));
+      data = [...data].filter((c, k, all) => !(k > 0 && c === all[k - 1] && sq.has(c))).join("");
+    }
+    return ok(data);
+  },
+
+  sed(sh, args, stdin) {
+    const { flags, rest } = parseArgs(args, "e");
+    let script: string;
+    if (typeof flags.e === "string") script = flags.e;
+    else if (rest.length) script = rest.shift()!;
+    else return fail("usage: sed [-n] [-E] 'SCRIPT' [FILE] — e.g. sed 's/old/new/' file");
+    let cmds: SedCmd[];
+    try { cmds = parseSed(script, !!(flags.E || flags.r)); } catch (e) { return fail((e as Error).message); }
+    const quiet = !!flags.n;
+    if (flags.i) {
+      if (!rest.length) return fail("sed: -i edits a file in place, so it needs a file name");
+      let err = "";
+      for (const a of rest) {
+        const r = sh.readFile(a, "sed");
+        if ("err" in r) { err += r.err; continue; }
+        const w = sh.write(a, runSed(cmds, r.data, quiet), false);
+        if (w) err += w.replace(/^bash: /, "sed: couldn't edit ");
+      }
+      return { out: "", err, code: err ? 4 : 0 };
+    }
+    const { inputs, err } = gather(sh, "sed", rest, stdin);
+    return { out: runSed(cmds, text(inputs.flatMap((x) => lines(x.data))), quiet), err, code: err ? 2 : 0 };
+  },
+
+  rev(sh, args, stdin) {
+    const { inputs, err } = gather(sh, "rev", args.filter((a) => a === "-" || !a.startsWith("-")), stdin);
+    return { out: text(inputs.flatMap((x) => lines(x.data)).map((l) => [...l].reverse().join(""))), err, code: err ? 1 : 0 };
+  },
+
+  tee(sh, args, stdin) {
+    const { flags, rest } = parseArgs(args);
+    let err = "";
+    for (const a of rest) { const w = sh.write(a, stdin, !!flags.a); if (w) err += w.replace(/^bash: /, "tee: "); }
+    return { out: stdin, err, code: err ? 1 : 0 };
+  },
+
+  // ── Check and compare ──────────────────────────────────────────────────────
+  diff(sh, args) {
+    const { rest } = parseArgs(args);
+    if (rest.length !== 2) return fail("usage: diff FILE1 FILE2", 2);
+    const a = sh.readFile(rest[0], "diff"), b = sh.readFile(rest[1], "diff");
+    if ("err" in a) return fail(a.err, 2);
+    if ("err" in b) return fail(b.err, 2);
+    const out = diffLines(lines(a.data), lines(b.data));
+    return { out: text(out), err: "", code: out.length ? 1 : 0 };
+  },
+
+  sha256sum(sh, args, stdin) {
+    const { flags, rest } = parseArgs(args);
+    if (flags.c) {
+      if (!rest.length) return fail("sha256sum: -c needs a checksum list, e.g. sha256sum -c CHECKSUMS.txt");
+      const list = sh.readFile(rest[0], "sha256sum");
+      if ("err" in list) return fail(list.err);
+      const out: string[] = [];
+      let bad = 0, unread = 0;
+      for (const l of lines(list.data)) {
+        const m = /^([0-9a-fA-F]{64}) [ *](.+)$/.exec(l.trim());
+        if (!m) continue;
+        const r = sh.readFile(m[2], "sha256sum");
+        if ("err" in r) { out.push(`${m[2]}: FAILED open or read`); unread++; continue; }
+        const same = sha256Hex(r.data) === m[1].toLowerCase();
+        if (!same) bad++;
+        out.push(`${m[2]}: ${same ? "OK" : "FAILED"}`);
+      }
+      let err = "";
+      if (unread) err += `sha256sum: WARNING: ${unread} listed file${unread > 1 ? "s" : ""} could not be read (run it from the folder the list describes)\n`;
+      if (bad) err += `sha256sum: WARNING: ${bad} computed checksum${bad > 1 ? "s" : ""} did NOT match\n`;
+      return { out: text(out), err, code: bad || unread ? 1 : 0 };
+    }
+    if (!rest.length) return ok(`${sha256Hex(stdin)}  -\n`);
+    const out: string[] = [];
+    let err = "";
+    for (const a of rest) {
+      if (sh.dirs.has(sh.resolve(a))) { err += `sha256sum: ${a}: Is a directory\n`; continue; }
+      const r = sh.readFile(a, "sha256sum");
+      if ("err" in r) err += r.err; else out.push(`${sha256Hex(r.data)}  ${a}`);
+    }
+    return { out: text(out), err, code: err ? 1 : 0 };
+  },
+
+  // ── Triage a machine ───────────────────────────────────────────────────────
+  ps(sh, args) {
+    const me = sh.spec.user;
+    const cmdline = ["ps", ...args].join(" ");
+    const mine = [{ user: me, pid: 2001, cmd: "-bash", tty: "pts/0", stat: "Ss" }, { user: me, pid: 2042, cmd: cmdline, tty: "pts/0", stat: "R+" }];
+    if (!args.length) {
+      const out = ["    PID TTY          TIME CMD", ...mine.map((p) => `${String(p.pid).padStart(7)} pts/0    00:00:00 ${p.cmd.replace(/^-/, "").split(" ")[0]}`)];
+      return ok(text(out));
+    }
+    const all = [
+      ...(sh.spec.procs ?? []).map((p) => ({ ...p, tty: "?", stat: "S" })),
+      ...mine.map((p) => ({ ...p, start: "09:30", cpu: "0.0" })),
+    ];
+    const out = ["USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"];
+    for (const p of all) {
+      const vsz = 6000 + ((p.pid * 7919) % 200000), rss = 2000 + ((p.pid * 104729) % 50000);
+      out.push(`${p.user.padEnd(8)} ${String(p.pid).padStart(6)} ${(p.cpu ?? "0.0").padStart(4)}  0.1 ${String(vsz).padStart(6)} ${String(rss).padStart(5)} ${p.tty.padEnd(8)} ${p.stat.padEnd(4)} ${p.start ?? "09:00"}   0:00 ${p.cmd}`);
+    }
+    return ok(text(out));
+  },
+
+  ss(sh, args) {
+    const { flags } = parseArgs(args);
+    const out = [`State   Recv-Q  Send-Q   ${"Local Address:Port".padStart(22)}   ${"Peer Address:Port".padEnd(18)}${flags.p ? " Process" : ""}`];
+    if (flags.l) {
+      for (const p of sh.spec.ports ?? []) {
+        const port = flags.n ? String(p.port) : SERVICE[p.port] ?? String(p.port);
+        const local = `${p.addr ?? "0.0.0.0"}:${port}`;
+        out.push(`LISTEN  0       128      ${local.padStart(22)}   ${"0.0.0.0:*".padEnd(18)}${flags.p ? ` users:(("${p.proc}",pid=${p.pid},fd=3))` : ""}`);
+      }
+    }
+    return ok(text(out));
+  },
+
+  date: (sh) => ok((sh.spec.date ?? "Fri Oct 23 09:30:00 UTC 2026") + "\n"),
+
+  which(sh, args) {
+    const out: string[] = [];
+    let code = 0;
+    for (const a of args) { if (BUILTINS[a] || sh.spec.programs?.[a]) out.push(`/usr/bin/${a}`); else code = 1; }
+    return { out: text(out), err: "", code };
   },
 };

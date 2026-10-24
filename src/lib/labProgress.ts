@@ -17,10 +17,12 @@ export function readLab(labId: string): { done: number; total: number } {
   return { done: 0, total: 0 };
 }
 
+// A lab that gained objectives at the end (e.g. new dojo drills) keeps what was
+// already done: saved flags are padded or trimmed to `count`.
 export function loadLab(labId: string, count: number): boolean[] {
   try {
     const arr = JSON.parse(localStorage.getItem(key(labId)) ?? "null") as unknown;
-    if (Array.isArray(arr) && arr.length === count) return arr.map(Boolean);
+    if (Array.isArray(arr)) return Array.from({ length: count }, (_, i) => Boolean(arr[i]));
   } catch { /* ignore */ }
   return Array.from({ length: count }, () => false);
 }

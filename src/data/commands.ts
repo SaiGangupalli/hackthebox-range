@@ -31,6 +31,18 @@ export const commandGroups: CommandGroup[] = [
     ],
   },
   {
+    title: "Create and organise files",
+    intro: "Make folders, copy and rename files, tidy up, and control who can use them.",
+    commands: [
+      { name: "mkdir", tip: "mkdir -p cases/2026/web01 creates every missing folder in the path at once." },
+      { name: "touch", tip: "Quick way to create an empty file you'll add notes to later." },
+      { name: "cp", tip: "Investigate a copy, never the original — that keeps the evidence untouched." },
+      { name: "mv", tip: "Renaming is just moving to a new name: mv old.txt new.txt." },
+      { name: "rm", tip: "No undo! Run ls with the same name first to see exactly what will be deleted." },
+      { name: "chmod", tip: "Read the numbers as owner/group/everyone: 7 = rwx, 6 = rw-, 4 = r--, 0 = nothing." },
+    ],
+  },
+  {
     title: "Search and filter",
     intro: "Find the lines or files that matter.",
     commands: [
@@ -47,6 +59,24 @@ export const commandGroups: CommandGroup[] = [
       { name: "uniq", tip: "It only merges neighbouring duplicates, so always sort first." },
       { name: "cut", tip: "-d says what separates the columns, -f says which column(s) you want." },
       { name: "awk", tip: "$NF means the last word on the line — handy when lines have different lengths." },
+    ],
+  },
+  {
+    title: "Change text",
+    intro: "Reshape output as it flows through a pipe — the original file stays untouched.",
+    commands: [
+      { name: "tr", tip: "tr 'A-Za-z' 'N-ZA-Mn-za-m' is a complete ROT13 decoder." },
+      { name: "sed", tip: "Add g to replace every match on a line: s/old/new/g. Use -n '5p' to print just line 5." },
+      { name: "rev", tip: "Reversed text turns up in puzzles — rev puts it back the right way round." },
+      { name: "tee", tip: "Watch results and keep a copy at once. tee -a adds to the file instead of replacing it." },
+    ],
+  },
+  {
+    title: "Check and compare",
+    intro: "Prove a file hasn't changed, and see exactly what has.",
+    commands: [
+      { name: "sha256sum", tip: "If even one character changes, the fingerprint changes completely." },
+      { name: "diff", tip: "Compare a config before and after a change to spot anything unexpected." },
     ],
   },
   {
@@ -76,6 +106,16 @@ export const commandGroups: CommandGroup[] = [
       { name: "id", tip: "The groups list matters — some groups grant extra powers (e.g. reading logs)." },
       { name: "uname", tip: "uname -a shows the kernel version, useful when checking patch levels." },
       { name: "hostname" },
+      { name: "date", tip: "Note the time when you start an investigation — log times are compared against it." },
+      { name: "which", tip: "Shows which program actually runs when you type a command name." },
+    ],
+  },
+  {
+    title: "What's running?",
+    intro: "Triage: which programs are running and which network ports are open.",
+    commands: [
+      { name: "ps", tip: "Look for programs running from odd places like /tmp, or using lots of CPU." },
+      { name: "ss", tip: "0.0.0.0 means open to every network; 127.0.0.1 means only this machine." },
     ],
   },
 ];
@@ -88,6 +128,13 @@ export const recipes: { cmd: string; does: string }[] = [
   { cmd: "strings image.png | grep -i flag", does: "Search the readable text inside a binary file." },
   { cmd: "echo SEhCe2hpfQ== | base64 -d", does: "Decode a Base64 string on the spot." },
   { cmd: "cat notes.txt > copy.txt", does: "Send a command's output into a file instead of the screen (>> appends)." },
+  { cmd: "awk '{print $1}' access.log | sort | uniq -c | sort -nr | head -n 3", does: "Which three IP addresses made the most requests?" },
+  { cmd: "ps aux | grep sync", does: "Is a particular program running, and as which user?" },
+  { cmd: "ss -tlnp | grep 4444", does: "Which program is listening on a given port?" },
+  { cmd: "tr 'A-Za-z' 'N-ZA-Mn-za-m' < secret.txt", does: "Decode (or encode) ROT13 with no website needed." },
+  { cmd: "sed 's/changeme123/REDACTED/' config.bak", does: "Hide a secret before you paste output into a report." },
+  { cmd: "cd downloads && sha256sum -c CHECKSUMS.txt", does: "Check downloads against the publisher's fingerprints." },
+  { cmd: "grep -r 198.51.100.4 logs > attacker.txt", does: "Collect every log line about one IP address into a file." },
 ];
 
 // Command-anatomy walkthrough for the top of the handbook.
