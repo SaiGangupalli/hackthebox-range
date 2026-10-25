@@ -115,7 +115,7 @@ export default async function ChallengesPage() {
               const done = solved.has(c.id);
               const st = stats[c.id];
               return (
-                <div className={`chal${done ? " solved" : ""}`} key={c.id}>
+                <div className={`chal${done ? " solved" : ""}`} key={c.id} id={c.id}>
                   {site.hidden.includes(c.id) && <div className="chal-hidden"><Icon name="shield" />Hidden from players — only organizers can see this</div>}
                   <div className="chal-top">
                     <h3>{c.title}</h3>

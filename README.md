@@ -154,6 +154,9 @@ position) and give them a `level` — the page shows them grouped by level.
 
 ### Community features
 
+- **My learning** — `/learning`: the next step on the path, progress by level, what to review
+  (unfinished labs, quizzes below full marks), command practice by tier, certification readiness and
+  challenges that match the tracks you've finished.
 - **Profiles, XP & ranks** — `/u/<handle>`. Signed-in learning progress (labs, quizzes, finished
   tracks) syncs to `hhb_progress`; XP and HTB-style ranks (Noob → Omniscient) are computed from it
   plus solved challenges. Browser-reported progress is clamped to what the content allows; the CTF
@@ -166,6 +169,20 @@ position) and give them a `level` — the page shows them grouped by level.
 - **Event mode** — set `EVENT_START` / `EVENT_END` (and optionally `EVENT_FREEZE`) to run a timed
   CTF: flags are accepted only during the window, and during a freeze the scoreboard, feed and other
   players' profiles show standings as of the freeze. Unset = always-open practice. See `.env.example`.
+
+## Tests
+
+```bash
+npm test          # simulator, drills, labs, content and challenge checks (Node's test runner, ~1 s)
+npm run typecheck
+```
+
+Tests live in `tests/*.test.ts` and run the app's TypeScript directly (`--experimental-strip-types`,
+with `tests/support/loader.mjs` resolving the `@/` alias), so there's nothing extra to install. They
+cover only code that doesn't need the database. Among other things they check that every command
+drill and every objective of the newer labs is solvable, that exam banks are big enough, that every
+link between tracks, labs, glossary terms and certifications resolves, and that no flag is written
+in `challenges.ts` in plain text. `.github/workflows/ci.yml` runs type-check, tests and build on push.
 
 ## Extending it further
 

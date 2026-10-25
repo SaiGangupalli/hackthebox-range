@@ -7,6 +7,7 @@ export type NavGroup = { g: string; items: NavItem[] };
 export const navGroups: NavGroup[] = [
   { g: "Start", items: [
     { href: "/", name: "Home", icon: "shield" },
+    { href: "/learning", name: "My learning", icon: "trophy" },
     { href: "/ethics", name: "Rules of engagement", icon: "ethics" },
     { href: "/glossary", name: "Glossary", icon: "book" },
   ]},

@@ -7,6 +7,8 @@
     "dev": "node scripts/serve.mjs dev",
     "build": "next build",
     "start": "node scripts/serve.mjs start",
+    "test": "node --test --experimental-strip-types --no-warnings --import ./tests/support/register.mjs \"tests/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
     "db:diff": "sh scripts/db.sh diff",
     "db:apply": "sh scripts/db.sh apply",

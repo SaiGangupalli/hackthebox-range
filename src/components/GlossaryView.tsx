@@ -1,7 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Icon } from "./icons";
 import { glossary, GLOSSARY_CATS } from "@/data/glossary";
+import { tracks } from "@/data/tracks";
 
 // Searchable glossary: type to filter by term or definition, or narrow to one
 // category. Terms are listed A–Z within each category.
@@ -61,6 +63,7 @@ export function GlossaryView() {
                 <dd>
                   {t.def}
                   {t.eg && <span className="gl-eg"><b>Example</b>{t.eg}</span>}
+                  {t.track && tracks[t.track] && <Link className="gl-track" href={`/tracks/${t.track}`}>Learn it in the {tracks[t.track].title} track →</Link>}
                 </dd>
               </div>
             ))}
