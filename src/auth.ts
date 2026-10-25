@@ -28,17 +28,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       credentials: { handle: {}, password: {} },
       // Failed attempts are limited per handle (stops password guessing on one
-      // account) and all attempts per IP (stops spraying across accounts).
+      // account) and per IP (stops spraying across accounts). Successful
+      // sign-ins don't count, so a whole venue behind one IP can sign in at once.
       authorize: async (creds, request) => {
         const handle = String(creds?.handle ?? "").trim().toLowerCase();
         const password = String(creds?.password ?? "");
         if (!handle || !password) return null;
         const failKey = `login-fail:${handle}`;
-        if (!check(failKey, RULES.loginFailPerHandle).ok) throw new RateLimited();
-        if (!take(`login-ip:${clientIp(request)}`, RULES.loginPerIp).ok) throw new RateLimited();
+        const ipKey = `login-fail-ip:${clientIp(request)}`;
+        if (!check(failKey, RULES.loginFailPerHandle).ok || !check(ipKey, RULES.loginFailPerIp).ok) throw new RateLimited();
         const user = await prisma.user.findUnique({ where: { handle } });
-        if (!user || !verifyPassword(password, user.password)) {
+        if (!user || !(await verifyPassword(password, user.password))) {
           take(failKey, RULES.loginFailPerHandle);
+          take(ipKey, RULES.loginFailPerIp);
           return null;
         }
         if (await isBanned(user.id)) throw new Suspended();

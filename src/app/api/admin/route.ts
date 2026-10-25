@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { challenges } from "@/data/challenges";
 import { currentAdmin, isAdminHandle } from "@/lib/admin";
-import { getSite, setAnnouncement, setHidden, setBanned, audit } from "@/lib/settings";
+import { getSite, setAnnouncement, setEventTimes, setHidden, setBanned, audit } from "@/lib/settings";
+import { timesProblem, type EventTimes } from "@/lib/event";
 import { reset } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -13,6 +14,13 @@ export const dynamic = "force-dynamic";
 const READABLE = "abcdefghjkmnpqrstuvwxyz23456789"; // no 0/o, 1/l/i
 // Three groups of four (e.g. "k7mp-2xqa-9fhw"): 12 random characters, easy to read out.
 const tempPassword = () => Array.from({ length: 14 }, (_, i) => (i === 4 || i === 9 ? "-" : READABLE[randomInt(READABLE.length)])).join("");
+
+const isoOrNull = (v: unknown) => {
+  if (v == null || v === "") return null;
+  const d = new Date(String(v));
+  return isNaN(d.getTime()) ? "invalid" : d.toISOString();
+};
+const short = (iso: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") + " UTC" : "—");
 
 // Organizer actions. Body: { action, ... }. Every change is written to the
 // audit log; temporary passwords are returned once and never logged.
@@ -34,6 +42,22 @@ export async function POST(req: Request) {
     if (action === "clear-announcement") {
       await setAnnouncement(null);
       await audit(admin.handle, "cleared announcement");
+      return NextResponse.json({ ok: true });
+    }
+
+    // Event times: { start, end, freeze } as ISO strings or null. All null is
+    // practice mode; "event-clear" goes back to the EVENT_* env vars.
+    if (action === "event-set") {
+      const t: EventTimes = { start: isoOrNull(body?.start), end: isoOrNull(body?.end), freeze: isoOrNull(body?.freeze) };
+      const problem = timesProblem(t);
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+      await setEventTimes(t);
+      await audit(admin.handle, "set event times", `start ${short(t.start)} · freeze ${short(t.freeze)} · end ${short(t.end)}`);
+      return NextResponse.json({ ok: true });
+    }
+    if (action === "event-clear") {
+      await setEventTimes(null);
+      await audit(admin.handle, "reset event times to the .env values");
       return NextResponse.json({ ok: true });
     }
 
@@ -61,7 +85,7 @@ export async function POST(req: Request) {
     if (action === "reset-password") {
       if (!user) return NextResponse.json({ error: "No player with that handle" }, { status: 404 });
       const password = tempPassword();
-      await prisma.user.update({ where: { id: user.id }, data: { password: hashPassword(password) } });
+      await prisma.user.update({ where: { id: user.id }, data: { password: await hashPassword(password) } });
       reset(`login-fail:${user.handle}`);
       await audit(admin.handle, "reset password", user.handle);
       return NextResponse.json({ ok: true, handle: user.handle, password });

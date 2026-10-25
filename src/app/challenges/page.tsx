@@ -5,12 +5,12 @@ import { challenges, totalPoints, FLAG_FORMAT } from "@/data/challenges";
 import { tracks } from "@/data/tracks";
 import { pathOrder } from "@/data/path";
 import { score } from "@/lib/stats";
-import { eventInfo, acceptsFlags } from "@/lib/event";
+import { acceptsFlags } from "@/lib/event";
 import { Icon } from "@/components/icons";
 import { SubmitForm } from "@/components/SubmitForm";
 import { HintButton, VoteControl } from "@/components/ChallengeExtras";
 import { EventBanner } from "@/components/EventBanner";
-import { siteOrDefault } from "@/lib/settings";
+import { siteOrDefault, getEvent } from "@/lib/settings";
 import { isAdminHandle } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function ChallengesPage() {
   const session = await auth();
   const uid = (session?.user as { id?: string } | undefined)?.id;
   const handle = session?.user?.name;
-  const ev = eventInfo();
+  const ev = await getEvent();
   const open = acceptsFlags(ev);
   const site = await siteOrDefault();
   const admin = isAdminHandle(handle);

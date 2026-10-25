@@ -4,7 +4,8 @@
 // need a shared store (e.g. Redis) instead.
 //
 // Per-IP limits are deliberately generous: at an on-site event many players
-// share one public IP. Per-handle and per-player limits do the real work.
+// share one public IP (the load test in scripts/loadtest.mjs simulates that).
+// Per-handle and per-player limits do the real work.
 
 type Rule = { limit: number; windowMs: number };
 
@@ -13,8 +14,8 @@ const num = (v: string | undefined, d: number) => Math.max(1, parseInt(v ?? "", 
 
 export const RULES = {
   loginFailPerHandle: { limit: num(process.env.RATE_LOGIN_FAILS_PER_HANDLE, 10), windowMs: 15 * MIN },
-  loginPerIp: { limit: num(process.env.RATE_LOGIN_PER_IP, 150), windowMs: 15 * MIN },
-  registerPerIp: { limit: num(process.env.RATE_REGISTER_PER_IP, 40), windowMs: 60 * MIN },
+  loginFailPerIp: { limit: num(process.env.RATE_LOGIN_FAILS_PER_IP, 300), windowMs: 15 * MIN },
+  registerPerIp: { limit: num(process.env.RATE_REGISTER_PER_IP, 300), windowMs: 60 * MIN },
   submitPerUser: { limit: 30, windowMs: 5 * MIN },
   submitPerChallenge: { limit: 10, windowMs: 5 * MIN },
   teamJoin: { limit: 10, windowMs: 10 * MIN },
@@ -60,11 +61,18 @@ export function reset(key: string) {
   hits.delete(key);
 }
 
-// Best-effort client IP. X-Forwarded-For is only trustworthy behind a proxy
-// that sets it; per-IP limits are a backstop, not the main defence.
-export function clientIp(source: Request | Headers | undefined | null): string {
+// Best-effort client IP from X-Forwarded-For. Each proxy in front of the app
+// appends the address it received the request from, so the trustworthy entry
+// is the one TRUSTED_PROXY_HOPS from the right (default 1: one proxy or
+// hosting platform). Entries further left were sent by the client and can be
+// anything. Without any proxy, Next.js passes the client's own header through,
+// so per-IP limits are a backstop, not the main defence.
+const HOPS = Math.max(1, parseInt(process.env.TRUSTED_PROXY_HOPS ?? "", 10) || 1);
+
+export function clientIp(source: Request | Headers | undefined | null, hops = HOPS): string {
   const h = source instanceof Headers ? source : source?.headers;
-  const xff = h?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const list = (h?.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const xff = list.length ? list[Math.max(0, list.length - hops)] : "";
   return xff || h?.get("x-real-ip")?.trim() || "local";
 }
 

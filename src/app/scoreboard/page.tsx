@@ -2,7 +2,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { totalPoints } from "@/data/challenges";
 import { getBoard } from "@/lib/stats";
-import { eventInfo, boardCutoff } from "@/lib/event";
+import { boardCutoff } from "@/lib/event";
+import { getEvent } from "@/lib/settings";
 import { Icon } from "@/components/icons";
 import { EventBanner } from "@/components/EventBanner";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -16,7 +17,7 @@ export const metadata = { title: "Scoreboard · H@ck1h3B0x Range" };
 export default async function ScoreboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const view = (await searchParams).view === "teams" ? "teams" : "players";
   const me = (await auth())?.user?.name ?? null;
-  const ev = eventInfo();
+  const ev = await getEvent();
   const cutoff = boardCutoff(ev);
 
   let board: Awaited<ReturnType<typeof getBoard>> | null = null;

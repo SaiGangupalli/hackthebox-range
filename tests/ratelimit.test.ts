@@ -22,8 +22,13 @@ test("check never records a use", () => {
   assert.equal(take(key, rule).ok, false);
 });
 
-test("clientIp prefers the first X-Forwarded-For hop", () => {
-  assert.equal(clientIp(new Headers({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" })), "203.0.113.5");
+test("clientIp takes the address the trusted proxy added, not one the client sent", () => {
+  // The client sent "203.0.113.5"; the proxy appended the address it really saw.
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "203.0.113.5, 198.51.100.20" })), "198.51.100.20");
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "198.51.100.20" })), "198.51.100.20");
+  // Two proxies (e.g. CDN in front of nginx): skip the one nginx added.
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "6.6.6.6, 198.51.100.20, 10.0.0.2" }), 2), "198.51.100.20");
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "198.51.100.20" }), 3), "198.51.100.20", "more hops than entries falls back to the first");
   assert.equal(clientIp(new Headers({ "x-real-ip": "198.51.100.7" })), "198.51.100.7");
   assert.equal(clientIp(new Headers()), "local");
   assert.equal(clientIp(undefined), "local");

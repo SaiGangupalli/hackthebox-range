@@ -3,9 +3,9 @@ import { createHash } from "node:crypto";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { challenges } from "@/data/challenges";
-import { eventInfo, acceptsFlags } from "@/lib/event";
+import { acceptsFlags } from "@/lib/event";
 import { RULES, take, tooMany } from "@/lib/rateLimit";
-import { siteOrDefault } from "@/lib/settings";
+import { siteOrDefault, getEvent } from "@/lib/settings";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const uid = (session?.user as { id?: string } | undefined)?.id;
   if (!uid) return NextResponse.json({ error: "Sign in to submit flags" }, { status: 401 });
 
-  const ev = eventInfo();
+  const ev = await getEvent();
   if (!acceptsFlags(ev)) {
     const msg = ev.state === "before" ? "The event hasn't started yet." : "The event has ended — submissions are closed.";
     return NextResponse.json({ error: msg, event: ev.state }, { status: 403 });

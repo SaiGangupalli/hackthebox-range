@@ -20,8 +20,8 @@ export async function POST(req: Request) {
   if (next === current) return NextResponse.json({ error: "Choose a password different from the current one." }, { status: 400 });
   try {
     const user = await prisma.user.findUnique({ where: { id: uid }, select: { password: true } });
-    if (!user || !verifyPassword(current, user.password)) return NextResponse.json({ error: "Your current password is wrong." }, { status: 403 });
-    await prisma.user.update({ where: { id: uid }, data: { password: hashPassword(next) } });
+    if (!user || !(await verifyPassword(current, user.password))) return NextResponse.json({ error: "Your current password is wrong." }, { status: 403 });
+    await prisma.user.update({ where: { id: uid }, data: { password: await hashPassword(next) } });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Database unavailable — your password wasn't changed." }, { status: 503 });

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "./icons";
 import { InlineCode } from "./InlineCode";
+import { LocalTime } from "./LocalTime";
 import type { RangeCert } from "@/data/certify";
 import type { CertStatus, ExamResult, PublicQ, ReqItem } from "@/lib/certify/exam";
 
@@ -12,7 +13,6 @@ const fmtTime = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
-const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 // The exam flow: requirements and rules → timed questions → result. Questions
 // and grading come from the server; answers are kept in this browser while you
@@ -110,7 +110,7 @@ export function ExamRunner({ cert, status, reqs, signedIn, retryMinutes }: { cer
           </div>
         ) : (
           <p className="er-retry">
-            {retryAt ? <>You can try again after <b>{clock(retryAt)}</b> ({retryMinutes} minutes). </> : null}
+            {retryAt ? <>You can try again after <b><LocalTime at={retryAt} format="time" /></b> ({retryMinutes} minutes). </> : null}
             Use the time to revisit the topics below — the requirements list links to the right tracks and labs.
           </p>
         )}
@@ -222,7 +222,7 @@ export function ExamRunner({ cert, status, reqs, signedIn, retryMinutes }: { cer
         ) : !status?.ready ? (
           <><button className="btn" disabled>Finish the requirements first</button><span>Each item above links to where you can complete it.</span></>
         ) : waiting ? (
-          <><button className="btn" disabled>Retry available at {clock(retryAt!)}</button><span>Review the topics you missed in the meantime.</span></>
+          <><button className="btn" disabled>Retry available at <LocalTime at={retryAt!} format="time" /></button><span>Review the topics you missed in the meantime.</span></>
         ) : (
           <><button className="btn primary" disabled={busy} onClick={start}><Icon name="zap" />{status?.inProgress ? "Resume the exam" : busy ? "Starting…" : "Start the exam"}</button>
             {status && status.attempts > 0 && <span>Attempts so far: {status.attempts}{status.best != null ? ` · best ${status.best}%` : ""}</span>}</>

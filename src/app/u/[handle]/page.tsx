@@ -7,7 +7,8 @@ import { path } from "@/data/path";
 import { quiz } from "@/data/quiz";
 import { labById } from "@/data/labs";
 import { Icon } from "@/components/icons";
-import { eventInfo, boardCutoff } from "@/lib/event";
+import { boardCutoff } from "@/lib/event";
+import { getEvent } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   const target = decodeURIComponent(handle).toLowerCase();
   const viewer = (await auth())?.user?.name ?? null;
   // During a scoreboard freeze, other people's profiles hide post-freeze solves.
-  const cutoff = viewer === target ? null : boardCutoff(eventInfo());
+  const cutoff = viewer === target ? null : boardCutoff(await getEvent());
   let p: Awaited<ReturnType<typeof getProfile>>;
   try {
     p = await getProfile(target, cutoff);

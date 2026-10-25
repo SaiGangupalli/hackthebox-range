@@ -12,7 +12,9 @@
     "postinstall": "prisma generate",
     "db:diff": "sh scripts/db.sh diff",
     "db:apply": "sh scripts/db.sh apply",
-    "flag-hash": "node scripts/flag-hash.mjs"
+    "db:backup": "node scripts/backup.mjs",
+    "flag-hash": "node scripts/flag-hash.mjs",
+    "loadtest": "node scripts/loadtest.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

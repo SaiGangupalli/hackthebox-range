@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "./icons";
+import { LocalTime } from "./LocalTime";
 import type { Announcement, AuditEntry } from "@/lib/settings";
 import type { EventInfo } from "@/lib/event";
 
@@ -14,10 +15,26 @@ export type AdminData = {
   suspicious: { a: string; b: string; count: number; sameTeam: boolean; challenges: string[] }[];
   audit: AuditEntry[];
   event: EventInfo;
+  eventSource: "console" | "env" | "none"; // where the current times come from
+  envTimes: boolean; // the .env file sets event times
   windowSeconds: number;
 };
 
-const when = (iso: string) => new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+// <input type="datetime-local"> works in the browser's local time, without a zone.
+const toLocalInput = (iso: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+const fromLocalInput = (v: string) => (v ? new Date(v).toISOString() : null);
+const MIN = 60_000;
+
+const EXPORTS = [
+  { what: "players", label: "Player standings", help: "rank, handle, team, points" },
+  { what: "teams", label: "Team standings", help: "rank, team, members, points" },
+  { what: "solves", label: "Every solve", help: "time, player, challenge, first blood" },
+  { what: "certificates", label: "Certificates", help: "who earned which, with verify links" },
+];
 
 // The organizer console's controls. Every action goes through /api/admin, which
 // re-checks that you're an organizer; the page then refreshes from the server.
@@ -29,6 +46,18 @@ export function AdminPanel({ data }: { data: AdminData }) {
   const [level, setLevel] = useState<"info" | "warn">("info");
   const [q, setQ] = useState("");
   const [temp, setTemp] = useState<{ handle: string; password: string } | null>(null);
+  const [times, setTimes] = useState({ start: "", freeze: "", end: "" });
+  const [tz, setTz] = useState("");
+
+  // Filled in after mount: local times depend on the browser's timezone.
+  const ev = data.event;
+  useEffect(() => {
+    setTimes({ start: toLocalInput(ev.start), freeze: toLocalInput(ev.freeze), end: toLocalInput(ev.end) });
+    setTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, [ev.start, ev.freeze, ev.end]);
+
+  const setEvent = (t: { start: string | null; end: string | null; freeze: string | null }, done: string, confirmText?: string) =>
+    act({ action: "event-set", ...t }, done, confirmText);
 
   async function act(body: Record<string, unknown>, done: string, confirmText?: string) {
     if (confirmText && !confirm(confirmText)) return;
@@ -71,7 +100,7 @@ export function AdminPanel({ data }: { data: AdminData }) {
         {data.announcement ? (
           <div className={`announce-preview ${data.announcement.level}`}>
             <span>{data.announcement.text}</span>
-            <small>posted by {data.announcement.by} · {when(data.announcement.at)}</small>
+            <small>posted by {data.announcement.by} · <LocalTime at={data.announcement.at} /></small>
             <button className="btn" disabled={!!busy} onClick={() => act({ action: "clear-announcement" }, "Announcement cleared.")}>Clear</button>
           </div>
         ) : <p className="admin-empty">No announcement right now.</p>}
@@ -87,6 +116,54 @@ export function AdminPanel({ data }: { data: AdminData }) {
               <Icon name="zap" />{data.announcement ? "Replace announcement" : "Publish"}
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <h2><Icon name="clock" />Event times</h2>
+        <p className="admin-help">
+          Flags are accepted from the start until the end. During the optional freeze, the public scoreboard shows the standings as they were at the freeze, and players can still submit.
+          Changes reach every open page within 30 seconds. {data.eventSource === "env" ? "The current times come from the .env file; saving here overrides them." : data.eventSource === "console" ? "The current times were set here." : "No times are set, so the range is in practice mode: always open, never frozen."}
+        </p>
+        <div className="admin-times">
+          <label>Start<input type="datetime-local" value={times.start} onChange={(e) => setTimes({ ...times, start: e.target.value })} /></label>
+          <label><span>Scoreboard freeze <small>optional</small></span><input type="datetime-local" value={times.freeze} onChange={(e) => setTimes({ ...times, freeze: e.target.value })} /></label>
+          <label>End<input type="datetime-local" value={times.end} onChange={(e) => setTimes({ ...times, end: e.target.value })} /></label>
+        </div>
+        <div className="admin-row admin-event-actions">
+          {tz && <span className="admin-count">times in {tz}</span>}
+          <button className="btn primary" disabled={!!busy} onClick={() => setEvent({ start: fromLocalInput(times.start), freeze: fromLocalInput(times.freeze), end: fromLocalInput(times.end) }, "Event times saved.")}>Save times</button>
+        </div>
+        <div className="admin-row admin-quick">
+          <span className="admin-count">quick:</span>
+          {(ev.state === "before" || ev.state === "practice") && (
+            <button className="btn" disabled={!!busy} onClick={() => setEvent({ start: new Date().toISOString(), freeze: ev.freeze, end: ev.end }, "The event has started.", "Start the event now? Players can submit flags straight away.")}>Start now</button>
+          )}
+          {(ev.state === "live" || ev.state === "frozen") && (
+            <button className="btn" disabled={!!busy} onClick={() => setEvent({ start: ev.start, freeze: ev.freeze && new Date(ev.freeze).getTime() < Date.now() ? ev.freeze : null, end: new Date().toISOString() }, "The event has ended.", "End the event now? Submissions close and the final board is shown to everyone.")}>End now</button>
+          )}
+          {ev.end && ev.state !== "ended" && (
+            <button className="btn" disabled={!!busy} onClick={() => setEvent({ start: ev.start, freeze: ev.freeze, end: new Date(new Date(ev.end!).getTime() + 15 * MIN).toISOString() }, "The end moved 15 minutes later.")}>End 15 min later</button>
+          )}
+          {ev.state === "ended" && (
+            <button className="btn" disabled={!!busy} onClick={() => setEvent({ start: ev.start, freeze: null, end: new Date(Date.now() + 15 * MIN).toISOString() }, "Submissions are open again for 15 minutes.", "Reopen submissions for 15 minutes? The scoreboard freeze is removed.")}>Reopen for 15 min</button>
+          )}
+          {ev.state !== "practice" && (
+            <button className="btn" disabled={!!busy} onClick={() => setEvent({ start: null, freeze: null, end: null }, "Practice mode: always open, never frozen.", "Switch to practice mode? Flags are accepted any time and the scoreboard is never frozen.")}>Practice mode</button>
+          )}
+          {data.eventSource === "console" && data.envTimes && (
+            <button className="btn" disabled={!!busy} onClick={() => act({ action: "event-clear" }, "Using the times from the .env file again.")}>Use .env times</button>
+          )}
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <h2><Icon name="book" />Export results</h2>
+        <p className="admin-help">CSV files for prizes and records. They always include everything, even during a freeze. Standings leave out banned players; the solve log keeps them, marked. Each export is recorded in the audit log.</p>
+        <div className="admin-exports">
+          {EXPORTS.map((x) => (
+            <a key={x.what} className="btn" href={`/api/admin/export?what=${x.what}`} download><Icon name="download" /><span><b>{x.label}</b><small>{x.help}</small></span></a>
+          ))}
         </div>
       </section>
 
@@ -137,7 +214,7 @@ export function AdminPanel({ data }: { data: AdminData }) {
                   <td>{p.team ?? "—"}</td>
                   <td>{p.solved}</td>
                   <td>{p.points}</td>
-                  <td>{when(p.joined)}</td>
+                  <td><LocalTime at={p.joined} /></td>
                   <td className="admin-actions">
                     {!p.admin && (p.banned
                       ? <button className="btn" disabled={!!busy} onClick={() => act({ action: "unban", handle: p.handle }, `${p.handle} is unbanned.`)}>Unban</button>
@@ -173,7 +250,7 @@ export function AdminPanel({ data }: { data: AdminData }) {
         {data.audit.length ? (
           <ul className="admin-list audit">
             {data.audit.map((a, i) => (
-              <li key={i}><small>{when(a.at)}</small><b>{a.by}</b><span>{a.action}{a.target ? <> · <code>{a.target}</code></> : null}</span></li>
+              <li key={i}><small><LocalTime at={a.at} /></small><b>{a.by}</b><span>{a.action}{a.target ? <> · <code>{a.target}</code></> : null}</span></li>
             ))}
           </ul>
         ) : <p className="admin-empty">No organizer actions yet.</p>}

@@ -135,16 +135,23 @@ position) and give them a `level` — the page shows them grouped by level.
 ### Organizers & security
 
 - **Organizer console** — `/admin`, for handles listed in `ADMIN_HANDLES` (everyone else gets a
-  404). Post a site-wide announcement banner, hide a broken or leaked challenge (players can't see
+  404). Set the event's start, freeze and end times (with "start now", "end now" and "15 minutes
+  more" buttons), download results as CSV (player and team standings, every solve, certificates),
+  post a site-wide announcement banner, hide a broken or leaked challenge (players can't see
   or submit it; points already scored stay), ban a player (signs them out everywhere via the JWT
   callback, blocks sign-in, removes them from scoreboard, feed and first bloods), reset a player's
   password (a one-time temporary password they can change at `/account`), spot possible flag
   sharing (pairs solving the same challenges within two minutes), and read the audit log. Stored in
   `hhb_setting` (`src/lib/settings.ts`, cached for 10 s).
-- **Rate limits** — `src/lib/rateLimit.ts`: failed sign-ins per handle (lockout), sign-in attempts
-  and sign-ups per IP, flag submissions per player and per challenge, team-join attempts, and a
-  general write limit. In memory, so per server process; per-IP limits are generous because event
-  players often share one venue IP. Tune with the `RATE_*` variables in `.env.example`.
+- **Rate limits** — `src/lib/rateLimit.ts`: failed sign-ins per handle (lockout) and per IP,
+  sign-ups per IP, flag submissions per player and per challenge, team-join attempts, and a general
+  write limit. In memory, so per server process; per-IP limits are generous because event players
+  often share one venue IP. Tune with the `RATE_*` variables in `.env.example`. The client IP is
+  read from `X-Forwarded-For` as added by your proxy (`TRUSTED_PROXY_HOPS`); entries the client
+  sent itself are ignored.
+- **Event day** — [`docs/EVENT-RUNBOOK.md`](docs/EVENT-RUNBOOK.md): deployment checklist, what to do
+  when something goes wrong mid-event, and recovery. `npm run loadtest` simulates a room of players
+  behind one IP; `npm run db:backup` snapshots this app's tables to `backups/` (git-ignored).
 - **Headers** — `next.config.ts` sends a Content-Security-Policy (same-origin plus Google Fonts;
   inline scripts allowed because Next.js bootstraps with them), `X-Frame-Options: DENY`, `nosniff`,
   a strict referrer policy, a locked-down Permissions-Policy and, in production, HSTS.
@@ -175,9 +182,11 @@ position) and give them a `level` — the page shows them grouped by level.
 - **Teams** — `/teams`: create a team (join code), join, leave; `TEAM_MAX` caps size (default 4).
   Team score counts each challenge once, at the first member's solve.
 - **Badges & activity feed** — computed from the data above; nothing extra stored.
-- **Event mode** — set `EVENT_START` / `EVENT_END` (and optionally `EVENT_FREEZE`) to run a timed
-  CTF: flags are accepted only during the window, and during a freeze the scoreboard, feed and other
-  players' profiles show standings as of the freeze. Unset = always-open practice. See `.env.example`.
+- **Event mode** — set the start, end and optional freeze in the organizer console (or with
+  `EVENT_START` / `EVENT_END` / `EVENT_FREEZE`; console times win) to run a timed CTF: flags are
+  accepted only during the window, and during a freeze the scoreboard, feed and other players'
+  profiles show standings as of the freeze. No times = always-open practice. Open pages pick up
+  changes within 30 seconds.
 
 ## Tests
 

@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   try {
     const existing = await prisma.user.findUnique({ where: { handle } });
     if (existing) return NextResponse.json({ error: "That handle is taken" }, { status: 409 });
-    await prisma.user.create({ data: { handle, password: hashPassword(password) } });
+    await prisma.user.create({ data: { handle, password: await hashPassword(password) } });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Database unavailable — is DATABASE_URL set and migrated?" }, { status: 503 });

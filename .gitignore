@@ -29,3 +29,6 @@ next-env.d.ts
 
 # unreviewed diff from npm run db:diff (applied SQL is kept in prisma/sql/)
 /prisma/pending.sql
+
+# database snapshots from npm run db:backup (password hashes, player data)
+/backups/

@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { challenges } from "@/data/challenges";
 import { currentAdmin, isAdminHandle } from "@/lib/admin";
-import { getSite, getAudit } from "@/lib/settings";
-import { eventInfo } from "@/lib/event";
+import { getSite, getAudit, getEvent } from "@/lib/settings";
+import { envTimes } from "@/lib/event";
 import { Icon } from "@/components/icons";
 import { AdminPanel, type AdminData } from "@/components/AdminPanel";
 
@@ -56,6 +56,7 @@ export default async function AdminPage() {
       .sort((x, y) => y.count - x.count)
       .slice(0, 30);
 
+    const envSet = Object.values(envTimes()).some(Boolean);
     const solveCount = new Map<string, number>();
     for (const s of solves) solveCount.set(s.challengeId, (solveCount.get(s.challengeId) ?? 0) + 1);
     const banned = new Set(site.banned);
@@ -75,7 +76,9 @@ export default async function AdminPage() {
       })),
       suspicious,
       audit: log.slice(0, 60),
-      event: eventInfo(),
+      event: await getEvent(),
+      eventSource: site.event ? "console" : envSet ? "env" : "none",
+      envTimes: envSet,
       windowSeconds: PAIR_WINDOW_S,
     };
   } catch {

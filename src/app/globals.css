@@ -172,7 +172,7 @@ ul.ticks li::before{content:"";width:16px;height:16px;margin-top:3px;flex-shrink
 .tool-sub{color:var(--muted);font-size:13px;margin-bottom:14px}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
 .field label{font-family:var(--mono);font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--faint)}
-textarea,input[type=text],input:not([type]),select{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--fg);border-radius:9px;padding:10px 12px;font-family:var(--mono);font-size:13px;resize:vertical}
+textarea,input[type=text],input[type=datetime-local],input:not([type]),select{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--fg);border-radius:9px;padding:10px 12px;font-family:var(--mono);font-size:13px;resize:vertical}
 textarea{min-height:76px;line-height:1.5}
 .ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
 .ctrl .grow{flex:1;min-width:140px}
@@ -1393,6 +1393,17 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .announce-preview.warn{background:var(--warn-weak);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
 .announce-preview span{flex:1 1 300px}
 .announce-preview small{font-size:12px;color:var(--muted)}
+.admin-times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.admin-times label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
+.admin-times label small{color:var(--faint);font-size:11px}
+.admin-times input{width:100%}
+.admin-event-actions{margin-top:10px}
+.admin-quick{margin-top:12px;padding-top:12px;border-top:1px solid var(--border-soft)}
+.admin-quick .btn{margin-left:0;padding:5px 11px;font-size:12.5px}
+.admin-exports{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.admin-exports .btn{justify-content:flex-start;text-align:left;text-decoration:none;padding:10px 12px}
+.admin-exports .btn span{display:flex;flex-direction:column;gap:2px}
+.admin-exports .btn small{font-size:11.5px;color:var(--muted);font-weight:400}
 .admin-table-wrap{overflow-x:auto}
 .admin-table{width:100%;border-collapse:collapse;font-size:13px}
 .admin-table th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);padding:6px 8px;border-bottom:1px solid var(--border)}
@@ -1414,6 +1425,7 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .admin-list.audit li{display:grid;grid-template-columns:120px 110px 1fr;gap:10px}
 @media (max-width:860px){
   .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-times,.admin-exports{grid-template-columns:1fr}
   .admin-list.audit li{grid-template-columns:1fr}
 }
 .err-page{max-width:640px;padding-top:20px}
