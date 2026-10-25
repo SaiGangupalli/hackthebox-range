@@ -89,6 +89,20 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
         ))}
       </div>
 
+      {p.certs.length > 0 && (
+        <>
+          <div className="sec-h"><Icon name="cert" />Certifications · {p.certs.length}</div>
+          <div className="prof-certs">
+            {p.certs.map((c) => (
+              <Link key={c.id} className={`prof-cert ${c.level.toLowerCase()}`} href={`/cert/${c.code}`}>
+                <Icon name={c.icon} />
+                <div><b>{c.short}</b><span>{c.name}</span><small>{c.level} · {c.pct}% · {new Date(c.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</small></div>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="sec-h"><Icon name="flag" />Learning path</div>
       <div className="prof-table-wrap">
         <table className="prof-table">

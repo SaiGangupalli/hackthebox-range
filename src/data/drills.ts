@@ -34,6 +34,9 @@ export const LEVELS = [
   "Investigate an incident",
 ];
 
+// Which skill tier each level belongs to (same tiers as the learning path).
+export const levelTier = (level: number) => (level <= 5 ? "Beginner" : level <= 9 ? "Intermediate" : "Advanced");
+
 const HOME = "/home/learner";
 
 // ── Practice data ────────────────────────────────────────────────────────────
@@ -317,7 +320,7 @@ export const drills: Drill[] = [
     explain: "`touch` creates an empty file (or updates the time on an existing one). Now you have somewhere to write what you find, with `echo … >> evidence/case-notes.txt`.", check: { uses: ["touch"], file: { paths: [`${HOME}/evidence/case-notes.txt`] } } },
   { id: "cp", level: 8, title: "Copy the evidence", task: "Copy logs/auth.log into the evidence folder.", hint: "cp SOURCE DESTINATION — when the destination is a folder, the file keeps its name.", example: "cp logs/auth.log evidence/",
     explain: "Work on a copy, never the original — that keeps the original evidence untouched. The trailing `/` makes it clear that evidence is a folder.", check: { uses: ["cp"], file: { paths: [`${HOME}/evidence/auth.log`], has: ["sshd"] } } },
-  { id: "mv", level: 8, title: "Rename it", task: "Rename evidence/auth.log to evidence/auth-web01.log so you know which server it came from.", hint: "mv renames when the destination is a new name in the same folder.", example: "mv evidence/auth.log evidence/auth-web01.log",
+  { id: "mv", level: 8, title: "Rename it", task: "Rename evidence/auth.log to evidence/auth-web01.log so you know which server it came from (copy it there first if it's missing).", hint: "mv renames when the destination is a new name in the same folder.", example: "mv evidence/auth.log evidence/auth-web01.log",
     explain: "`mv` both moves and renames — renaming is just moving to a new name. Clear names (server, date) save confusion when you collect logs from many machines.", check: { uses: ["mv"], file: { paths: [`${HOME}/evidence/auth-web01.log`], has: ["sshd"] }, missing: [`${HOME}/evidence/auth.log`] } },
   { id: "rm", level: 8, title: "Clean up", task: "Delete the leftover file scratch.tmp from your home folder.", hint: "rm removes files. Double-check the name before you press Enter.", example: "rm scratch.tmp",
     explain: "There's no recycle bin on the command line: `rm` is permanent. Pros run `ls` on the same name first to see exactly what will go. (This practice machine can be reset below.)", check: { uses: ["rm"], missing: [`${HOME}/scratch.tmp`] } },

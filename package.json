@@ -4,9 +4,9 @@
   "private": true,
   "description": "H@ck1h3B0x Range — a defensive-security CTF training hub (9 tracks, OWASP Web & LLM Top 10, cheatsheets, in-browser lab tools).",
   "scripts": {
-    "dev": "next dev --turbopack -p 3003",
+    "dev": "node scripts/serve.mjs dev",
     "build": "next build",
-    "start": "next start -p 3003",
+    "start": "node scripts/serve.mjs start",
     "postinstall": "prisma generate",
     "db:diff": "sh scripts/db.sh diff",
     "db:apply": "sh scripts/db.sh apply",

@@ -10,6 +10,8 @@ import { Icon } from "@/components/icons";
 import { SubmitForm } from "@/components/SubmitForm";
 import { HintButton, VoteControl } from "@/components/ChallengeExtras";
 import { EventBanner } from "@/components/EventBanner";
+import { siteOrDefault } from "@/lib/settings";
+import { isAdminHandle } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Challenges · H@ck1h3B0x Range" };
@@ -30,6 +32,11 @@ export default async function ChallengesPage() {
   const handle = session?.user?.name;
   const ev = eventInfo();
   const open = acceptsFlags(ev);
+  const site = await siteOrDefault();
+  const admin = isAdminHandle(handle);
+  // Organizers can hide a broken challenge; they still see it, labelled.
+  const visible = challenges.filter((c) => admin || !site.hidden.includes(c.id));
+  const banned = new Set(site.banned);
 
   const stats: Record<string, Stat> = Object.fromEntries(challenges.map((c) => [c.id, { solves: 0, first: null, votes: 0, avg: null }]));
   const solved = new Set<string>();
@@ -45,6 +52,7 @@ export default async function ChallengesPage() {
       uid ? prisma.hintUnlock.findMany({ where: { userId: uid }, select: { userId: true, challengeId: true, hint: true, cost: true, createdAt: true } }) : Promise.resolve([]),
     ]);
     for (const s of allSolves) {
+      if (banned.has(s.userId)) continue;
       const st = stats[s.challengeId];
       if (!st) continue;
       st.solves++;
@@ -64,7 +72,7 @@ export default async function ChallengesPage() {
   }
 
   // Warm-up first, then tracks in learning-path order.
-  const groups = [...new Set(challenges.map((c) => c.track))].sort((a, b) => groupRank(a) - groupRank(b));
+  const groups = [...new Set(visible.map((c) => c.track))].sort((a, b) => groupRank(a) - groupRank(b));
 
   return (
     <>
@@ -103,15 +111,18 @@ export default async function ChallengesPage() {
         <div key={g}>
           <div className="sec-h"><Icon name="zap" />{g}</div>
           <div className="chal-grid">
-            {challenges.filter((c) => c.track === g).map((c) => {
+            {visible.filter((c) => c.track === g).map((c) => {
               const done = solved.has(c.id);
               const st = stats[c.id];
               return (
                 <div className={`chal${done ? " solved" : ""}`} key={c.id}>
+                  {site.hidden.includes(c.id) && <div className="chal-hidden"><Icon name="shield" />Hidden from players — only organizers can see this</div>}
                   <div className="chal-top">
                     <h3>{c.title}</h3>
                     <span className="chal-badges">
-                      <span className={`diff ${difficulty(c.points)}`}>{difficulty(c.points)}</span>
+                      {c.level
+                        ? <span className={`lvl ${c.level.toLowerCase()}`}>{c.level}</span>
+                        : <span className={`diff ${difficulty(c.points)}`}>{difficulty(c.points)}</span>}
                       <span className="pts">{c.points} pts</span>
                     </span>
                   </div>

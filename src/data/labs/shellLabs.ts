@@ -6,6 +6,7 @@
 import type { ShellSpec } from "@/lib/sim/shell";
 import { makePng, makeZip, makeJpeg } from "@/lib/sim/bytes";
 import type { Task } from "./types";
+import { advancedLabs } from "./advancedLabs";
 
 export type { Task };
 
@@ -272,4 +273,7 @@ export const shellLabs: Record<string, ShellLab> = {
       },
     ],
   },
+
+  // DevOps, DevSecOps, Advanced SecOps and AISecOps labs
+  ...advancedLabs,
 };

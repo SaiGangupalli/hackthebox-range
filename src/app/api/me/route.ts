@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getProfile } from "@/lib/stats";
+import { isAdminHandle } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,7 @@ export async function GET() {
   try {
     const p = await getProfile(handle);
     if (!p) return NextResponse.json({ error: "Unknown player" }, { status: 404 });
-    return NextResponse.json({ handle: p.handle, rank: p.rank.name, level: p.rank.level, xp: p.rank.xp, points: p.score.points });
+    return NextResponse.json({ handle: p.handle, rank: p.rank.name, level: p.rank.level, xp: p.rank.xp, points: p.score.points, admin: isAdminHandle(p.handle) });
   } catch {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }

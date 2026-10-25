@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { RULES, take, clientIp, tooMany } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const limit = take(`register:${clientIp(req)}`, RULES.registerPerIp);
+  if (!limit.ok) return tooMany(limit.retryAfter, "sign-ups from this network");
   const body = await req.json().catch(() => ({}));
   const handle = String(body?.handle ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");

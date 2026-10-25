@@ -324,4 +324,161 @@ export const learn: Record<string, LearnTrack> = {
       },
     ],
   },
+
+  devops: {
+    intro:
+      "DevOps is how teams build, test and ship software many times a day: code goes into Git, a pipeline tests it and builds a container image, and Kubernetes runs it. Infrastructure is written as code too. You can't secure what you can't read — this track teaches you to read it.",
+    cards: [
+      {
+        q: "What is a CI/CD pipeline?",
+        a: "A list of automatic steps that runs every time someone pushes code: install, test, build, deploy. CI (continuous integration) checks every change; CD (continuous delivery) ships the ones that pass. `needs:` decides the order of jobs.",
+        worked: {
+          input: "cat .github/workflows/ci.yml",
+          output: "jobs:\n  test:   …\n  build:\n    needs: test\n  deploy:\n    needs: build",
+          read: "test runs first; build waits for test to pass; deploy waits for build. A failing test stops bad code from ever reaching production.",
+        },
+      },
+      {
+        q: "Image, container, pod — what's the difference?",
+        a: "An image is a packaged app (like an installer). A container is that image running. Kubernetes runs containers inside pods and keeps the number you asked for alive. A version tag like `shop:1.4.2` says exactly which build you're running; `latest` says nothing.",
+        worked: {
+          input: "kubectl get pods",
+          output: "NAME              READY  STATUS            RESTARTS\nshop-7d9c5b-4kq8n 1/1    Running           0\nshop-7d9c5b-qx2lp 0/1    CrashLoopBackOff  6",
+          read: "One pod keeps crashing and being restarted. Next step: `kubectl logs` on it to see the app's own error.",
+        },
+      },
+      {
+        q: "What is infrastructure as code?",
+        a: "Servers, networks and storage described in files (for example Terraform) instead of clicked together by hand. Changes are reviewed like code. `terraform plan` shows what will be added (+), changed (~) and destroyed (-) before anything happens.",
+        worked: {
+          input: "terraform plan",
+          output: "-/+ aws_instance.web  (must be replaced)\n  + aws_security_group_rule.debug\nPlan: 2 to add, 1 to change, 1 to destroy.",
+          read: "The web server will be destroyed and rebuilt (downtime!), and a new firewall rule appears. Always read the plan before you apply it.",
+        },
+      },
+      {
+        q: "Who secures what in the cloud?",
+        a: "The shared responsibility model: the cloud provider secures the data centres, hardware and their own services; you secure what you put on top — your settings, identities, data and code. Most cloud breaches are customer misconfigurations, like a storage bucket left public.",
+      },
+    ],
+  },
+
+  devsecops: {
+    intro:
+      "DevSecOps puts security checks inside the pipeline, so problems are caught minutes after they're written instead of months later. The skill is reading scanner output and deciding what matters most.",
+    cards: [
+      {
+        q: "What does a secret scanner find?",
+        a: "Passwords, API keys and tokens committed to a repository — including in old commits. Git keeps history, so deleting the line later doesn't remove the secret. The only fix is to revoke (rotate) it and issue a new one.",
+        worked: {
+          input: "gitleaks detect --source .",
+          output: "Finding:  AWS_ACCESS_KEY_ID = \"AKIAIOSFODNN7EXAMPLE\"\nRuleID:   aws-access-token\nFile:     config/settings.py\nCommit:   3b7e9f1",
+          read: "A cloud key was committed in 3b7e9f1. Revoke it, create a new one, store it in a secret manager — then remove it from the code.",
+        },
+      },
+      {
+        q: "What is dependency scanning (SCA) and an SBOM?",
+        a: "Your app is mostly other people's code. A dependency scanner compares the versions you use against public vulnerability lists (CVEs). An SBOM (software bill of materials) is the ingredient list of a build, so when a new vulnerability is announced you can answer \"are we affected?\" in seconds.",
+        worked: {
+          input: "trivy fs .",
+          output: "minimist  CVE-2021-44906  CRITICAL  1.2.5 → fixed in 1.2.6\nlodash    CVE-2021-23337  HIGH      4.17.20 → fixed in 4.17.21",
+          read: "Fix the CRITICAL one first: upgrade minimist to 1.2.6 or later. The scanner even tells you the fixed version.",
+        },
+      },
+      {
+        q: "How do I harden a container image?",
+        a: "Start from a small, pinned base image; don't install what you don't need; and add a `USER` line so the app doesn't run as root. If someone breaks into a root container, they have far more power than in one running as a normal user.",
+        worked: {
+          input: "checkov -f Dockerfile",
+          output: "Check: CKV_DOCKER_3: \"Ensure that a user for the container has been created\"\n\tFAILED for resource: Dockerfile",
+          read: "No USER line, so the app runs as root. Add `RUN adduser -D app` and `USER app` near the end of the Dockerfile.",
+        },
+      },
+      {
+        q: "What do IaC scanners look for?",
+        a: "Risky settings in infrastructure code before it's deployed: storage readable by the whole internet, firewall rules open to 0.0.0.0/0, unencrypted disks, logging turned off. Catching them in a pull request is far cheaper than after a breach.",
+        worked: {
+          input: "checkov -d infra/",
+          output: "Check: CKV_AWS_20: \"S3 Bucket has an ACL defined which allows public READ access\"\n\tFAILED for resource: aws_s3_bucket.invoices",
+          read: "The invoices bucket can be read by anyone on the internet. Remove the public-read ACL and turn on the account's public-access block.",
+        },
+      },
+    ],
+  },
+
+  secops: {
+    intro:
+      "Advanced security operations is about finding what no alert caught. You form a hypothesis (\"an Office document might have started a script\"), test it against the logs, and turn what you learn into a detection so it's caught automatically next time.",
+    cards: [
+      {
+        q: "What is threat hunting?",
+        a: "Searching your logs for attacker behaviour on purpose, instead of waiting for an alert. Hunters look for things that are rare or out of place: a Word document starting PowerShell, a laptop talking to the same server every 60 seconds, DNS names far longer than normal.",
+        worked: {
+          input: "cut -d, -f4,5 process.csv | sort | uniq -c | sort -n | head -n 3",
+          output: "      1 winword.exe,powershell.exe\n      2 services.exe,spoolsv.exe\n      9 explorer.exe,chrome.exe",
+          read: "Counting parent → child pairs makes the rare one jump out: Word starting PowerShell happened once — and should never happen.",
+        },
+      },
+      {
+        q: "What is beaconing?",
+        a: "Malware on an infected machine \"checks in\" with its controller on a timer. In connection logs that looks like the same host contacting the same destination at regular intervals — every 60 seconds, all day. Normal browsing is bursty and irregular.",
+        worked: {
+          input: "grep 198.51.100.23 proxy.log | head -n 4",
+          output: "09:42:05 10.1.4.27 198.51.100.23 412\n09:43:05 10.1.4.27 198.51.100.23 409\n09:44:05 10.1.4.27 198.51.100.23 415\n09:45:05 10.1.4.27 198.51.100.23 411",
+          read: "Exactly 60 seconds apart, almost the same size each time — a heartbeat, not a person.",
+        },
+      },
+      {
+        q: "What is a Sigma rule?",
+        a: "A detection written once in a shared YAML format, then converted to the search language of any SIEM (Splunk, Elastic, Sentinel…). It says which logs to look at, what to match, and how serious a match is. Tags map it to MITRE ATT&CK techniques.",
+        worked: {
+          input: "cat rules/office_spawns_shell.yml",
+          output: "detection:\n  selection:\n    ParentImage|endswith: '\\WINWORD.EXE'\n    Image|endswith: '\\powershell.exe'\n  condition: selection\ntags: [attack.t1059.001]",
+          read: "Fires when Word starts PowerShell. T1059.001 is ATT&CK's ID for \"Command and Scripting Interpreter: PowerShell\".",
+        },
+      },
+      {
+        q: "What happens in incident response?",
+        a: "A practised sequence: prepare, detect and analyse, contain, eradicate, recover, then learn lessons (the NIST incident-handling cycle). Containing first — isolating the host, disabling the stolen account — stops the damage spreading while you investigate.",
+      },
+    ],
+  },
+
+  aisecops: {
+    intro:
+      "AISecOps is running AI features like any other production system: threat-model them, guard their inputs and outputs, limit what agents can do, verify the models you load, and monitor everything. The risks are new; the habits (least privilege, logging, integrity checks) are not.",
+    cards: [
+      {
+        q: "How do I threat-model an AI app?",
+        a: "Draw how data flows: user → app → model → tools, plus the documents it retrieves (RAG). Then ask at each arrow: can untrusted text reach the model? What can the model make the app do? Which data could leak? OWASP's LLM Top 10 and MITRE ATLAS list the usual answers.",
+      },
+      {
+        q: "What is RAG poisoning?",
+        a: "RAG apps paste retrieved documents into the model's prompt. If someone can edit one of those documents, they can hide instructions in it — for example in an HTML comment users never see. The model may follow them. Clean and check what goes into the knowledge base.",
+        worked: {
+          input: "grep -ril 'ignore previous' rag/",
+          output: "rag/vendor-faq.md",
+          read: "One knowledge-base file contains an injected instruction. Remove it, find out who could edit it, and strip hidden content before indexing.",
+        },
+      },
+      {
+        q: "Why limit what an AI agent can do?",
+        a: "An agent that can send email, call APIs or run code turns a successful prompt injection into real actions. Give it only the tools it needs, allow-list where they can connect, cap how many calls it makes, and require a human to approve risky ones.",
+        worked: {
+          input: "grep send_email logs/tools.jsonl",
+          output: "{\"tool\":\"send_email\",\"to\":\"audit@collect.example.net\",\"status\":\"sent\"}",
+          read: "The agent emailed an outside address. With an allow-list and approval for send_email, this would have been stopped.",
+        },
+      },
+      {
+        q: "How do I know a model file is the one I meant to load?",
+        a: "Treat models like any other download: get them from a trusted source, pin the version, and check the hash (or signature) before loading. Prefer safe formats such as safetensors over formats that can run code when loaded.",
+        worked: {
+          input: "sha256sum -c models.sha256",
+          output: "base-model.safetensors: OK\nclassifier-adapter.safetensors: FAILED",
+          read: "The adapter changed after its hash was recorded. Don't load it — restore it from a trusted copy and find out who changed it.",
+        },
+      },
+    ],
+  },
 };

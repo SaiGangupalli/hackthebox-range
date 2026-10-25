@@ -256,6 +256,135 @@ export const tracks: Record<string, Track> = {
     ],
     defend: ["Least privilege; remove unneeded SUID & admin rights", "Patch promptly; track CIS benchmarks", "Harden services; fix unquoted paths & weak ACLs", "Monitor process creation and auth events"],
   },
+
+  // ── Intermediate and advanced tracks (beyond the nine CTF categories) ──────
+  devops: {
+    slug: "devops", num: 10, title: "DevOps & Cloud", tag: "pipelines & platforms", color: "#5aa9ff",
+    blurb: "How modern software is built, shipped and run: version control, CI/CD pipelines, containers, Kubernetes and infrastructure as code. Defenders have to read all of it — most production incidents (and their fixes) start here.",
+    skills: ["Git history", "CI/CD pipelines", "Docker images", "Kubernetes basics", "Terraform (infrastructure as code)", "cloud shared responsibility", "reading deploy logs"],
+    sheets: [
+      { title: "Git & pipelines", rows: [
+        { code: "git log --oneline -n 5", note: "The last five commits, one per line" },
+        { code: "git show <commit> --stat", note: "Which files a commit changed" },
+        { code: "git diff main..feature", note: "What a branch changes compared with main" },
+        { code: "cat .github/workflows/ci.yml", note: "Read a pipeline: jobs, their order (needs:) and steps" },
+      ]},
+      { title: "Containers & Kubernetes", rows: [
+        { code: "docker build -t shop:1.4.2 .", note: "Build an image with a pinned version tag" },
+        { code: "docker image ls", note: "Images on this machine, with tags and sizes" },
+        { code: "kubectl get pods -n shop", note: "Pods and their status (Running, CrashLoopBackOff…)" },
+        { code: "kubectl describe pod <name>", note: "Events: why a pod won't start" },
+        { code: "kubectl logs <pod>", note: "The app's own output — usually where the real error is" },
+      ]},
+      { title: "Infrastructure as code", rows: [
+        { code: "terraform plan", note: "Preview every change before anything happens" },
+        { code: "terraform apply", note: "Make the changes the plan showed" },
+        { code: "terraform state list", note: "Resources Terraform is managing" },
+      ]},
+    ],
+    tools: ["Git", "GitHub Actions", "GitLab CI", "Jenkins", "Docker", "Kubernetes (kubectl)", "Helm", "Terraform", "AWS / Azure / Google Cloud"],
+    labs: [
+      { name: "Learn Git Branching", url: "https://learngitbranching.js.org", note: "Visual, interactive Git practice in the browser." },
+      { name: "Killercoda", url: "https://killercoda.com", note: "Free browser-based Linux and Kubernetes playgrounds." },
+      { name: "Kubernetes tutorials", url: "https://kubernetes.io/docs/tutorials/", note: "Official step-by-step tutorials." },
+      { name: "HashiCorp Terraform tutorials", url: "https://developer.hashicorp.com/terraform/tutorials", note: "Official getting-started paths." },
+    ],
+    defend: ["Pin image tags and versions — never deploy :latest", "Require review and passing tests before anything merges", "Keep secrets in a secret manager, not in repos or pipeline files", "Read the terraform plan before every apply", "Give pipelines and pods only the permissions they need"],
+  },
+
+  devsecops: {
+    slug: "devsecops", num: 11, title: "DevSecOps", tag: "security in the pipeline", color: "#ff7ac6",
+    blurb: "Shift security left: catch leaked secrets, vulnerable dependencies, risky container images and insecure infrastructure code automatically, before they ship. You'll read real scanner output and decide what to fix first.",
+    skills: ["secret scanning", "dependency scanning (SCA)", "SBOMs", "static analysis (SAST)", "container hardening", "IaC scanning", "supply-chain integrity", "triaging findings"],
+    sheets: [
+      { title: "Scanners in the pipeline", rows: [
+        { code: "gitleaks detect --source .", note: "Secrets committed anywhere in the repo's history" },
+        { code: "trivy fs .", note: "Known-vulnerable dependencies in a project" },
+        { code: "trivy image shop:1.4.2", note: "Vulnerabilities inside a container image" },
+        { code: "semgrep --config auto .", note: "Static analysis for risky code patterns" },
+        { code: "checkov -d infra/", note: "Misconfigurations in Terraform, Kubernetes and Dockerfiles" },
+      ]},
+      { title: "Supply chain", rows: [
+        { code: "syft shop:1.4.2 -o spdx-json > sbom.json", note: "Generate an SBOM — the image's ingredient list" },
+        { code: "sha256sum -c CHECKSUMS.txt", note: "Verify downloads against published fingerprints" },
+        { code: "cosign verify <image>", note: "Check an image's signature (with the signer's key or identity)" },
+      ]},
+      { title: "Dockerfile hardening", rows: [
+        { code: "FROM node:20-alpine", note: "Small base image with a pinned version" },
+        { code: "USER app", note: "Run as a normal user, not root" },
+        { code: "COPY --chown=app:app . .", note: "Files owned by the app user, not root" },
+      ]},
+    ],
+    tools: ["gitleaks", "TruffleHog", "Trivy", "Grype", "Syft", "Semgrep", "CodeQL", "Checkov", "Dependabot", "Sigstore / cosign", "OWASP Dependency-Check"],
+    labs: [
+      { name: "OWASP WrongSecrets", url: "https://owasp.org/www-project-wrongsecrets/", note: "Practice finding secrets stored the wrong way." },
+      { name: "OWASP DevSecOps Guideline", url: "https://owasp.org/www-project-devsecops-guideline/", note: "Which checks belong in which pipeline stage." },
+      { name: "Kubernetes Goat", url: "https://madhuakula.com/kubernetes-goat/", note: "An intentionally vulnerable cluster to run locally." },
+      { name: "GitHub Skills", url: "https://skills.github.com", note: "Hands-on courses, including secure-code scanning." },
+    ],
+    defend: ["Block merges when a secret or critical vulnerability is found", "Rotate any secret that ever reached a repo — deleting the line isn't enough", "Keep an SBOM for every release so you can answer \"are we affected?\" fast", "Run containers as a non-root user from minimal, pinned base images", "Sign images and verify the signature before deploying"],
+  },
+
+  secops: {
+    slug: "secops", num: 12, title: "Advanced SecOps", tag: "hunt, detect, respond", color: "#e0c44f",
+    blurb: "Go beyond single alerts: hunt for attackers who didn't trip one, write detections that catch behaviour, and run an incident from first signal to containment. Builds on Splunk, Forensics and OS.",
+    skills: ["threat hunting", "detection engineering", "Sigma rules", "MITRE ATT&CK mapping", "process trees", "beaconing analysis", "DNS tunnelling signs", "incident response"],
+    sheets: [
+      { title: "Hunting searches (SPL)", rows: [
+        { code: "index=sysmon EventCode=1 | stats count by ParentImage, Image | sort count", note: "Rare parent → child process pairs rise to the top" },
+        { code: "index=proxy | stats count by src, dest | where count > 50", note: "One host talking to one destination very often (beaconing)" },
+        { code: "index=dns | eval len=len(query) | where len > 60", note: "Unusually long DNS names (possible tunnelling)" },
+        { code: "index=auth action=failure | stats dc(user) as users by src | where users > 10", note: "One source trying many usernames (password spraying)" },
+      ]},
+      { title: "Detection as code", rows: [
+        { code: "sigma convert -t splunk -p splunk_windows rule.yml", note: "Turn a Sigma rule into a Splunk search (sigma-cli)" },
+        { code: "tags: [attack.t1059.001]", note: "Map a rule to a MITRE ATT&CK technique" },
+        { code: "condition: selection and not filter", note: "Match the bad pattern, minus known-good exceptions" },
+      ]},
+      { title: "First response on a host", rows: [
+        { code: "ps -ef --forest", note: "Process tree: who started what" },
+        { code: "ss -tnp", note: "Live connections and the programs that own them" },
+        { code: "last -F", note: "Recent logins with full times" },
+        { code: "sha256sum suspicious.bin", note: "Hash before you share or submit a sample" },
+      ]},
+    ],
+    tools: ["Splunk / Elastic", "Sigma", "MITRE ATT&CK Navigator", "Sysmon", "Zeek", "Velociraptor", "YARA", "TheHive"],
+    labs: [
+      { name: "Boss of the SOC v3 dataset", url: "https://github.com/splunk/botsv3", note: "A full Splunk dataset to hunt through." },
+      { name: "Blue Team Labs Online", url: "https://blueteamlabs.online", note: "Investigation challenges for defenders." },
+      { name: "CyberDefenders", url: "https://cyberdefenders.org", note: "Blue-team labs: DFIR, threat hunting, network." },
+      { name: "MITRE ATT&CK", url: "https://attack.mitre.org", note: "The shared map of attacker techniques." },
+    ],
+    defend: ["Collect process creation, network connections and logins centrally", "Turn every incident into a detection so it can't repeat silently", "Practise containment steps before you need them", "Map detections to ATT&CK to find gaps in coverage", "Preserve evidence: hash it, copy it, then analyse the copy"],
+  },
+
+  aisecops: {
+    slug: "aisecops", num: 13, title: "AISecOps", tag: "securing AI in production", color: "#9be35e",
+    blurb: "Run AI features safely: threat-model an LLM app, put guardrails and evaluations in the pipeline, keep models and data trustworthy, and monitor prompts, tool calls and spending like any other production system.",
+    skills: ["AI threat modelling", "prompt-injection defence", "guardrails & evals", "RAG data hygiene", "agent / tool permissions", "model supply chain", "AI logging & monitoring", "AI governance (NIST AI RMF, ISO 42001)"],
+    sheets: [
+      { title: "Investigate an AI app", rows: [
+        { code: "grep -c '\"action\":\"block\"' prompts.jsonl", note: "How many prompts the guardrail blocked" },
+        { code: "grep -ril 'ignore previous' rag/", note: "Knowledge-base files carrying injected instructions" },
+        { code: "grep '\"tool\":\"send_email\"' tools.jsonl", note: "Every email an agent tried to send" },
+        { code: "sha256sum -c models.sha256", note: "Verify model files before loading them" },
+      ]},
+      { title: "Guardrail settings to check", rows: [
+        { code: "require_approval: true", note: "A person approves risky tool actions" },
+        { code: "allowed_domains: [example.com]", note: "Allow-list where tools may send data" },
+        { code: "max_tool_calls_per_request: 5", note: "Cap what an agent can do in one go" },
+        { code: "strip_html_comments: true", note: "Remove hidden text from retrieved documents" },
+      ]},
+    ],
+    tools: ["OWASP Top 10 for LLM Apps", "MITRE ATLAS", "NIST AI RMF", "garak (LLM scanner)", "promptfoo (evals)", "NeMo Guardrails", "Llama Guard", "model cards / ML-BOM", "OpenTelemetry traces"],
+    labs: [
+      { name: "OWASP GenAI Security Project", url: "https://genai.owasp.org", note: "LLM Top 10 and guidance for securing AI apps." },
+      { name: "MITRE ATLAS", url: "https://atlas.mitre.org", note: "ATT&CK-style map of attacks on AI systems." },
+      { name: "Gandalf (Lakera)", url: "https://gandalf.lakera.ai", note: "A game for practising prompt-injection defence." },
+      { name: "NIST AI Risk Management Framework", url: "https://www.nist.gov/itl/ai-risk-management-framework", note: "How organisations govern AI risk." },
+    ],
+    defend: ["Treat model output and retrieved text as untrusted input", "Give agents allow-listed tools with least privilege; require approval for risky actions", "Verify model and dataset hashes or signatures before use", "Run injection and data-leak evaluations in CI and block failing releases", "Log prompts, tool calls and decisions (with personal data redacted) and alert on anomalies"],
+  },
 };
 
-export const trackOrder = ["osint", "network", "splunk", "stego", "crypto", "webmobile", "genai", "forensics", "os"];
+export const trackOrder = ["osint", "network", "splunk", "stego", "crypto", "webmobile", "genai", "forensics", "os", "devops", "devsecops", "secops", "aisecops"];

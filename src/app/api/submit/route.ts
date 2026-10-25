@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { challenges } from "@/data/challenges";
 import { eventInfo, acceptsFlags } from "@/lib/event";
+import { RULES, take, tooMany } from "@/lib/rateLimit";
+import { siteOrDefault } from "@/lib/settings";
 
 export const runtime = "nodejs";
 
@@ -21,6 +23,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const ch = challenges.find((c) => c.id === body?.challengeId);
   if (!ch) return NextResponse.json({ error: "Unknown challenge" }, { status: 404 });
+  if ((await siteOrDefault()).hidden.includes(ch.id)) return NextResponse.json({ error: "This challenge is temporarily closed by the organizers." }, { status: 403 });
+
+  // Guessing flags is pointless, but cap the rate so nobody hammers the endpoint.
+  const perUser = take(`submit:${uid}`, RULES.submitPerUser);
+  if (!perUser.ok) return tooMany(perUser.retryAfter, "flag submissions");
+  const perChallenge = take(`submit:${uid}:${ch.id}`, RULES.submitPerChallenge);
+  if (!perChallenge.ok) return tooMany(perChallenge.retryAfter, "attempts on this challenge");
 
   const submitted = String(body?.flag ?? "").trim();
   const hash = createHash("sha256").update(submitted).digest("hex");

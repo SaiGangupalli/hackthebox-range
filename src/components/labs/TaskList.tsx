@@ -15,7 +15,8 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
   const [answers, setAnswers] = useState<string[]>(() => tasks.map(() => ""));
   const [reveal, setReveal] = useState<boolean[]>(() => tasks.map(() => false));
   const [misses, setMisses] = useState<number[]>(() => tasks.map(() => 0));
-  const [status, setStatus] = useState<(null | "wrong")[]>(() => tasks.map(() => null));
+  const [status, setStatus] = useState<(null | "wrong" | "again")[]>(() => tasks.map(() => null));
+  const [retry, setRetry] = useState<boolean[]>(() => tasks.map(() => false)); // re-practising a solved objective
 
   useEffect(() => {
     const load = () => setDone(loadLab(labId, tasks.length));
@@ -31,8 +32,9 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
   function submit(i: number) {
     if (!answers[i].trim()) return;
     if (tasks[i].check(answers[i])) {
-      const next = [...done]; next[i] = true; persist(next);
-      setStatus((s) => s.map((x, k) => (k === i ? null : x)));
+      if (!done[i]) { const next = [...done]; next[i] = true; persist(next); }
+      setStatus((s) => s.map((x, k) => (k === i ? (retry[i] ? "again" : null) : x)));
+      setRetry((r) => r.map((x, k) => (k === i ? false : x)));
     } else {
       setStatus((s) => s.map((x, k) => (k === i ? "wrong" : x)));
       const n = misses[i] + 1;
@@ -41,13 +43,28 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
     }
   }
 
+  // Practise solved objectives again: progress is kept, the answer box re-opens.
+  function practise(which: number[]) {
+    const set = new Set(which);
+    setRetry((r) => r.map((x, k) => x || set.has(k)));
+    setAnswers((a) => a.map((x, k) => (set.has(k) ? "" : x)));
+    setStatus((s) => s.map((x, k) => (set.has(k) ? null : x)));
+    setReveal((r) => r.map((x, k) => (set.has(k) ? false : x)));
+    setMisses((m) => m.map((x, k) => (set.has(k) ? 0 : x)));
+  }
+
   const solved = done.filter(Boolean).length;
 
   return (
     <div className="tasks">
       <div className="tasks-head">
         <span><Icon name="flag" /> Objectives</span>
-        <span className="tasks-count">{solved}/{tasks.length} solved</span>
+        <span className="tasks-count">
+          {solved}/{tasks.length} solved
+          {solved > 0 && (
+            <button className="task-hintbtn tasks-again" onClick={() => practise(done.flatMap((d, k) => (d ? [k] : [])))}>Practise all again</button>
+          )}
+        </span>
       </div>
       {tasks.map((t, i) => (
         <div className={`task${done[i] ? " done" : ""}`} key={i}>
@@ -55,8 +72,14 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
             <span className="task-mark">{done[i] ? <Icon name="check" /> : i + 1}</span>
             <span><InlineCode text={t.ask} /></span>
           </div>
-          {done[i] ? (
-            <div className="task-sol"><Icon name="check" /> <span><InlineCode text={t.solution} /></span></div>
+          {done[i] && !retry[i] ? (
+            <>
+              <div className="task-sol"><Icon name="check" /> <span><InlineCode text={t.solution} /></span></div>
+              <span className="task-help">
+                {status[i] === "again" && <span className="task-again-ok">Correct again!</span>}
+                <button className="task-hintbtn" onClick={() => practise([i])}>Try again</button>
+              </span>
+            </>
           ) : (
             <>
               <div className="task-input">
@@ -77,6 +100,7 @@ export function TaskList({ labId, tasks }: { labId: string; tasks: Task[] }) {
                   {misses[i] >= 2 ? "Not yet — the approach is open below to guide you." : "Not quite. Check spelling, then look again in the tool above."}
                 </div>
               )}
+              {retry[i] && <div className="task-msg retry">Practising again — your progress is kept.</div>}
               <span className="task-help">
                 <button className="task-hintbtn" onClick={() => setReveal((r) => r.map((x, k) => (k === i ? !x : x)))}>
                   {reveal[i] ? "Hide approach" : "Show approach"}

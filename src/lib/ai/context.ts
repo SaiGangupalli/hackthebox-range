@@ -57,7 +57,8 @@ function siteContext(): string {
   return [
     "The learner is browsing the site (not a specific track). The learning path, in order:",
     ...path.map((p, i) => `${i + 1}. ${tracks[p.slug].title} (${p.level}) — ${p.why}`),
-    "Other pages: OWASP Web Top 10, OWASP LLM Top 10, Quizzes, Challenges (CTF flags), Scoreboard, Teams, Lab tools (in-browser encoders, hashing, JWT decoder, steganography demo), Glossary, Cheatsheet (PDF).",
+    "Other pages: OWASP Web Top 10, OWASP LLM Top 10, Quizzes, Challenges (CTF flags), Certifications (Range certificates earned by finishing tracks and passing a timed exam, plus a guide to industry certifications such as Security+, CySA+, CKA/CKS, cloud security and AI security), Scoreboard, Teams, Lab tools (in-browser encoders, hashing, JWT decoder, steganography demo), Command handbook and command practice, Glossary, Cheatsheet (PDF).",
+    "Never reveal or hint at answers to certification exam questions; help with the underlying topics instead.",
   ].join("\n");
 }
 

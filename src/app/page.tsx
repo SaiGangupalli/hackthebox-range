@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { tracks } from "@/data/tracks";
-import { path } from "@/data/path";
+import { path, LEVELS, type Level } from "@/data/path";
+import { rangeCerts } from "@/data/certify";
 import { Icon } from "@/components/icons";
 import { useProgress } from "@/lib/progress";
 import { useLabProgress } from "@/lib/labProgress";
@@ -16,6 +17,12 @@ const HOW: [string, string, string][] = [
   ["resources", "Reference", "Commands and tools in one place — plus a printable cheatsheet."],
   ["shield", "Defend", "Every attack is paired with how to stop it on systems you look after."],
 ];
+
+const LEVEL_INFO: Record<Level, string> = {
+  Beginner: "No experience needed: the command line, encodings, public footprints and hidden files.",
+  Intermediate: "Networks, logs, web and LLM apps — and how software is built, shipped and secured in pipelines.",
+  Advanced: "Hunt for attackers no alert caught, and run AI features safely in production.",
+};
 
 export default function Home() {
   const { map, count } = useProgress();
@@ -34,8 +41,9 @@ export default function Home() {
         <div className="hero-tag">// VICS SECURITY CONCLAVE 2026 · CAPTURE THE FLAG</div>
         <h1>Learn to break it,<br />so you can <span className="mono">def3nd</span> it.</h1>
         <p>
-          A guided, hands-on range for the nine H@ck1h3B0x tracks. No experience needed: follow the path below,
-          read the short explanations, then practise each skill in a safe simulator right here in your browser.
+          A guided, hands-on range: the nine H@ck1h3B0x CTF tracks for beginners, then intermediate and advanced
+          tracks in DevOps, DevSecOps, threat hunting and AI security. No experience needed to start — read the short
+          explanations, practise each skill in a safe simulator right here in your browser, then get certified.
         </p>
         <div className="try-row">
           <Link className="btn primary" href={`/tracks/${nextStep.slug}`}>
@@ -45,9 +53,9 @@ export default function Home() {
           <Link className="btn" href="/ethics"><Icon name="shield" />Rules of engagement</Link>
         </div>
         <div className="statline">
-          <span><b>9</b>guided tracks</span>
-          <span><b>9</b>hands-on labs</span>
-          <span><b>10+10</b>OWASP risks</span>
+          <span><b>{path.length}</b>guided tracks & labs</span>
+          <span><b>{LEVELS.length}</b>levels, beginner → advanced</span>
+          <span><b>{rangeCerts.length}</b><Link href="/certifications">certifications to earn</Link></span>
           <span><b>100%</b>in your browser</span>
         </div>
       </section>
@@ -78,8 +86,19 @@ export default function Home() {
       </div>
       <div className="bar path-bar"><i style={{ width: `${((mounted ? count : 0) / path.length) * 100}%` }} /></div>
 
+      {LEVELS.map((level) => {
+        const steps = path.filter((p) => p.level === level);
+        const doneHere = steps.filter((p) => isDone(p.slug)).length;
+        return (
+          <section className="path-level" key={level}>
+            <div className="path-level-h">
+              <span className={`lvl ${level.toLowerCase()}`}>{level}</span>
+              <p>{LEVEL_INFO[level]}</p>
+              <span className="path-count">{doneHere}/{steps.length}</span>
+            </div>
       <ol className="path">
-        {path.map((p, i) => {
+        {steps.map((p) => {
+          const i = path.indexOf(p);
           const t = tracks[p.slug];
           const done = isDone(p.slug);
           const lp = lab[p.labId];
@@ -104,6 +123,18 @@ export default function Home() {
           );
         })}
       </ol>
+          </section>
+        );
+      })}
+
+      <div className="callout info cert-callout">
+        <Icon name="cert" />
+        <div>
+          <b>Get certified.</b> Finish the tracks for a level, then pass a timed exam to earn a{" "}
+          <Link href="/certifications">Range certificate</Link> you can share and anyone can verify. The same page maps
+          real-world certifications — Security+, CKA/CKS, cloud security, AI security and more — to what you&apos;ve learned here.
+        </div>
+      </div>
 
       <div className="sec-h"><Icon name="zap" />Happening now</div>
       <ActivityFeed limit={8} />

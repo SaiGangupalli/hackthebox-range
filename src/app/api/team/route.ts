@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomInt } from "node:crypto";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { RULES, take, tooMany } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
     }
 
     if (action === "join") {
+      // Limit attempts so join codes can't be guessed.
+      const limit = take(`team-join:${id}`, RULES.teamJoin);
+      if (!limit.ok) return tooMany(limit.retryAfter, "join attempts");
       const code = String(body?.code ?? "").trim().toUpperCase();
       if (current) return NextResponse.json({ error: "Leave your current team first" }, { status: 409 });
       const team = await prisma.team.findUnique({ where: { code }, select: { id: true, name: true, _count: { select: { members: true } } } });

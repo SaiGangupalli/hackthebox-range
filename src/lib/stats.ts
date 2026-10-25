@@ -6,6 +6,8 @@ import { labMeta, labById } from "@/data/labs";
 import { xpFrom, rankFor, type RankInfo } from "./xp";
 import { badgesFor } from "./badges";
 import { tracks } from "@/data/tracks";
+import { rangeCertById } from "@/data/certify";
+import { siteOrDefault } from "./settings";
 
 // Server-side player statistics: learning progress, CTF score, XP and rank.
 // Learning progress is reported by the browser, so every value is clamped to
@@ -72,9 +74,11 @@ export function xpAndRank(learn: LearnSummary, grossPoints: number): RankInfo {
 }
 
 // Who solved each challenge first (respecting a freeze cutoff).
+// Banned players never hold first blood.
 export async function firstSolvers(cutoff?: Date | null): Promise<Map<string, string>> {
+  const { banned } = await siteOrDefault();
   const rows = await prisma.solve.findMany({
-    where: cutoff ? { createdAt: { lte: cutoff } } : {},
+    where: { ...(cutoff ? { createdAt: { lte: cutoff } } : {}), userId: { notIn: banned } },
     select: { challengeId: true, user: { select: { handle: true } } },
     orderBy: { createdAt: "asc" },
   });
@@ -117,6 +121,15 @@ export async function getProfile(handle: string, cutoff: Date | null = null) {
     hintsUsed: user.hints.length,
     firstBloods,
     badges: badgesFor({ solved: solvedIds, firstBloods: firstBloods.length, hinted: new Set(user.hints.map((h) => h.challengeId)), learn, inTeam: !!user.membership }),
+    // Range certificates (server-issued rows, never synced from the browser).
+    certs: user.progress
+      .filter((r) => r.kind === "cert" && rangeCertById[r.key])
+      .map((r) => {
+        const d = r.data as { code: string; pct: number; issuedAt: string };
+        const c = rangeCertById[r.key];
+        return { id: c.id, code: d.code, name: c.name, short: c.code, level: c.level, icon: c.icon, pct: d.pct, issuedAt: d.issuedAt };
+      })
+      .sort((a, b) => (a.issuedAt < b.issuedAt ? -1 : 1)),
   };
 }
 
@@ -128,10 +141,12 @@ export type FeedItem =
 // Recent community activity: solves (with first bloods), finished tracks and
 // team joins. Solves after a freeze stay hidden until the event ends.
 export async function getFeed(cutoff: Date | null, limit = 20): Promise<FeedItem[]> {
+  const { banned } = await siteOrDefault();
+  const notBanned = { userId: { notIn: banned } };
   const [solves, done, joins, first] = await Promise.all([
-    prisma.solve.findMany({ where: cutoff ? { createdAt: { lte: cutoff } } : {}, select: { challengeId: true, points: true, createdAt: true, user: { select: { handle: true } } }, orderBy: { createdAt: "desc" }, take: limit }),
-    prisma.progress.findMany({ where: { kind: "track" }, select: { key: true, data: true, updatedAt: true, user: { select: { handle: true } } }, orderBy: { updatedAt: "desc" }, take: limit }),
-    prisma.teamMember.findMany({ select: { joinedAt: true, user: { select: { handle: true } }, team: { select: { name: true } } }, orderBy: { joinedAt: "desc" }, take: limit }),
+    prisma.solve.findMany({ where: { ...(cutoff ? { createdAt: { lte: cutoff } } : {}), ...notBanned }, select: { challengeId: true, points: true, createdAt: true, user: { select: { handle: true } } }, orderBy: { createdAt: "desc" }, take: limit }),
+    prisma.progress.findMany({ where: { kind: "track", ...notBanned }, select: { key: true, data: true, updatedAt: true, user: { select: { handle: true } } }, orderBy: { updatedAt: "desc" }, take: limit }),
+    prisma.teamMember.findMany({ where: notBanned, select: { joinedAt: true, user: { select: { handle: true } }, team: { select: { name: true } } }, orderBy: { joinedAt: "desc" }, take: limit }),
     firstSolvers(cutoff),
   ]);
   const items: FeedItem[] = [
@@ -162,7 +177,9 @@ export type TeamRow = { name: string; members: string[]; points: number; solved:
 // recorded later — including for ranks, so a rank change can't leak a late
 // solve. Teams count each challenge once, at its first solve by any member.
 export async function getBoard(cutoff: Date | null) {
+  const { banned } = await siteOrDefault();
   const users = await prisma.user.findMany({
+    where: { id: { notIn: banned } }, // banned players drop off the board (and out of team totals)
     select: {
       handle: true,
       solves: { select: { userId: true, challengeId: true, points: true, createdAt: true } },

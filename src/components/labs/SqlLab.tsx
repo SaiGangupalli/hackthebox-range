@@ -71,7 +71,7 @@ export function SqlLab({ lab }: { lab: SqlLabData }) {
         </div>
       </div>
 
-      <AutoTaskList labId={lab.id} tasks={lab.tasks} events={events} />
+      <AutoTaskList labId={lab.id} tasks={lab.tasks} events={events} onReset={() => setEvents(new Set())} />
     </div>
   );
 }

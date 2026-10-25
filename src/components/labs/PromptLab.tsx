@@ -93,7 +93,7 @@ export function PromptLab({ lab }: { lab: PromptLabData }) {
         <pre className="llm-assembled">{assemble(lab.spec, lastUser, def, true)}</pre>
       )}
 
-      <AutoTaskList labId={lab.id} tasks={lab.tasks} events={events} />
+      <AutoTaskList labId={lab.id} tasks={lab.tasks} events={events} onReset={() => setEvents(new Set())} />
     </div>
   );
 }

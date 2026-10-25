@@ -1,9 +1,10 @@
 # H@ck1h3B0x Range
 
 A hands-on, **defensive-security** training hub for the VICS Security Conclave 2026
-H@ck1h3B0x CTF. Covers the nine CTF tracks, the OWASP Web Top 10 and the OWASP LLM
-Top 10, with copy-to-clipboard cheatsheets and six lab tools that run entirely in
-the browser.
+H@ck1h3B0x CTF. Thirteen guided tracks across three levels — the nine CTF tracks (Beginner and
+Intermediate), plus DevOps & Cloud, DevSecOps, Advanced SecOps and AISecOps — the OWASP Web and LLM
+Top 10, in-browser labs and lab tools, and certifications: the Range's own exams and a guide to
+industry certifications.
 
 > **Authorized use only.** Everything here is for CTF, your own lab, or systems you
 > have written permission to test. See the in-app **Rules of engagement** page.
@@ -24,6 +25,11 @@ npm run dev     # http://localhost:3003  (Turbopack)
 npm run build   # production build
 npm start       # serve the production build on :3003
 ```
+
+If 3003 is taken, `dev` and `start` use the next free port and print it (3002 is never used: another
+local app owns it). `PORT=4000 npm run dev` starts looking from 4000; `npm run dev -- --print-port`
+only prints the port. If this app is already running, the script says where instead of starting a
+second copy. Sign-in works on any port (`trustHost`, no fixed `AUTH_URL`).
 
 ## Where things live
 
@@ -106,6 +112,45 @@ and tip for each, and prints to PDF. The **command dojo** (`/commands/practice`)
 in 12 levels, from `pwd` to a full incident triage, played in the simulated terminal (`src/lib/sim/shell.ts`).
 Drills live in `src/data/drills.ts`; add new ones at the **end** of the list (progress is saved per
 position) and give them a `level` — the page shows them grouped by level.
+
+### Levels & certifications
+
+- **Levels** — every track has a level in `src/data/path.ts` (`Beginner`, `Intermediate`,
+  `Advanced`); the home page, sidebar, challenges (optional `level` field) and command practice are
+  grouped by it. The four newer tracks' labs live in `src/data/labs/advancedLabs.ts`.
+- **Range certifications** — `/certifications` and `/certify/<id>`. Four exams (RCSF, RCDP, RCSE,
+  RCAE) in `src/data/certify.ts`; each needs finished tracks and labs (checked from synced progress
+  and verified solves), then a timed exam drawn at random from a **server-only** bank
+  (`src/lib/certify/bank.ts` — never import it from client code). Grading, attempts and certificates
+  live in `src/lib/certify/exam.ts` and are stored as server-only rows in `hhb_progress` (kinds
+  `exam` and `cert`; `/api/progress` refuses those kinds from browsers). A failed attempt waits
+  `CERT_RETRY_MINUTES` (default 30) before a retry. Certificates are public and verifiable at
+  `/cert/<code>`, print to PDF, and show on the player's profile. They're practice credentials, not
+  industry certifications — the pages say so.
+- **Industry guide** — `src/data/industryCerts.ts`: 30 certifications by area and level, mapped to
+  tracks here, plus career roadmaps. Keep it to stable facts and link the official page; bump
+  `CERTS_REVIEWED` when you re-check it. Signed-in players can generate AI practice questions on any
+  certification's topics (`/api/ai/questions` with `{ cert }`).
+
+### Organizers & security
+
+- **Organizer console** — `/admin`, for handles listed in `ADMIN_HANDLES` (everyone else gets a
+  404). Post a site-wide announcement banner, hide a broken or leaked challenge (players can't see
+  or submit it; points already scored stay), ban a player (signs them out everywhere via the JWT
+  callback, blocks sign-in, removes them from scoreboard, feed and first bloods), reset a player's
+  password (a one-time temporary password they can change at `/account`), spot possible flag
+  sharing (pairs solving the same challenges within two minutes), and read the audit log. Stored in
+  `hhb_setting` (`src/lib/settings.ts`, cached for 10 s).
+- **Rate limits** — `src/lib/rateLimit.ts`: failed sign-ins per handle (lockout), sign-in attempts
+  and sign-ups per IP, flag submissions per player and per challenge, team-join attempts, and a
+  general write limit. In memory, so per server process; per-IP limits are generous because event
+  players often share one venue IP. Tune with the `RATE_*` variables in `.env.example`.
+- **Headers** — `next.config.ts` sends a Content-Security-Policy (same-origin plus Google Fonts;
+  inline scripts allowed because Next.js bootstraps with them), `X-Frame-Options: DENY`, `nosniff`,
+  a strict referrer policy, a locked-down Permissions-Policy and, in production, HSTS.
+  `X-Powered-By` is off.
+- **Errors** — `src/app/error.tsx` and `global-error.tsx` show a calm retry screen instead of the
+  framework default.
 
 ### Community features
 

@@ -114,7 +114,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="scrim" onClick={() => setNavOpen(false)} />
-        <main className="content"><div className="view">{children}</div></main>
+        <main className="content"><div className="view"><AnnouncementBar />{children}</div></main>
       </div>
 
       <div className="toast" ref={toastRef} />
@@ -130,7 +130,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 function AuthControl() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
-  const [rank, setRank] = useState<{ rank: string; level: number } | null>(null);
+  const [rank, setRank] = useState<{ rank: string; level: number; admin?: boolean } | null>(null);
   const name = session?.user?.name;
   useEffect(() => {
     if (!name) { setRank(null); return; }
@@ -146,6 +146,8 @@ function AuthControl() {
           {session.user.name}
           {rank && <span className={`rank-chip r${rank.level}`}>{rank.rank}</span>}
         </Link>
+        {rank?.admin && <Link className="icon-btn" href="/admin" aria-label="Organizer console" title="Organizer console"><Icon name="flag" /></Link>}
+        <Link className="icon-btn" href="/account" aria-label="Account" title="Account (change password)"><Icon name="wrench" /></Link>
         <button className="icon-btn" aria-label="Sign out" title="Sign out" onClick={() => signOut({ callbackUrl: "/" })}>
           <Icon name="logout" />
         </button>
@@ -153,6 +155,29 @@ function AuthControl() {
     );
   }
   return <Link className="btn auth-signin" href="/login"><Icon name="shield" />Sign in</Link>;
+}
+
+// The organizers' announcement, polled once a minute. Dismissing hides that
+// announcement only; a new one shows again.
+function AnnouncementBar() {
+  const [a, setA] = useState<{ text: string; level: "info" | "warn"; at: string } | null>(null);
+  const [hidden, setHidden] = useState<string | null>(null);
+  useEffect(() => {
+    try { setHidden(localStorage.getItem("hhb_announce_dismissed")); } catch { /* storage blocked */ }
+    let alive = true;
+    const load = () => fetch("/api/announcement").then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive && d) setA(d.announcement); }).catch(() => {});
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+  if (!a || hidden === a.at) return null;
+  return (
+    <div className={`announce ${a.level}`} role="status">
+      <Icon name={a.level === "warn" ? "flag" : "zap"} />
+      <span>{a.text}</span>
+      <button className="icon-btn" aria-label="Dismiss announcement" onClick={() => { setHidden(a.at); try { localStorage.setItem("hhb_announce_dismissed", a.at); } catch { /* ignore */ } }}>×</button>
+    </div>
+  );
 }
 
 // Toggle the body.nav-open class used by the mobile drawer CSS.

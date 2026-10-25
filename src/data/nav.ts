@@ -1,5 +1,5 @@
 import { tracks } from "./tracks";
-import { pathOrder } from "./path";
+import { path, LEVELS } from "./path";
 
 export type NavItem = { href: string; name: string; icon: string; num?: number; track?: boolean };
 export type NavGroup = { g: string; items: NavItem[] };
@@ -10,14 +10,12 @@ export const navGroups: NavGroup[] = [
     { href: "/ethics", name: "Rules of engagement", icon: "ethics" },
     { href: "/glossary", name: "Glossary", icon: "book" },
   ]},
-  // Tracks appear in learning-path order, numbered by their step in the path.
-  { g: "Learning path", items: pathOrder.map((slug, i) => ({
-    href: `/tracks/${slug}`,
-    name: tracks[slug].title,
-    icon: slug,
-    num: i + 1,
-    track: true,
-  }))},
+  // Tracks appear in learning-path order, grouped by level and numbered by
+  // their step in the path.
+  ...LEVELS.map((level) => ({
+    g: level,
+    items: path.flatMap((p, i) => (p.level === level ? [{ href: `/tracks/${p.slug}`, name: tracks[p.slug].title, icon: p.slug, num: i + 1, track: true }] : [])),
+  })),
   { g: "OWASP", items: [
     { href: "/owasp", name: "Web Top 10", icon: "owasp" },
     { href: "/llm", name: "LLM Top 10", icon: "llm" },
@@ -25,6 +23,7 @@ export const navGroups: NavGroup[] = [
   { g: "Compete", items: [
     { href: "/quiz", name: "Quizzes", icon: "book" },
     { href: "/challenges", name: "Challenges", icon: "flag" },
+    { href: "/certifications", name: "Certifications", icon: "cert" },
     { href: "/scoreboard", name: "Scoreboard", icon: "trophy" },
     { href: "/teams", name: "Teams", icon: "network" },
   ]},

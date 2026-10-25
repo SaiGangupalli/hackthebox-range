@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { challenges } from "@/data/challenges";
+import { RULES, take, tooMany } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,8 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const uid = ((await auth())?.user as { id?: string } | undefined)?.id;
   if (!uid) return NextResponse.json({ error: "Sign in to vote" }, { status: 401 });
+  const limit = take(`write:${uid}`, RULES.write);
+  if (!limit.ok) return tooMany(limit.retryAfter);
 
   const body = await req.json().catch(() => ({}));
   const ch = challenges.find((c) => c.id === body?.challengeId);

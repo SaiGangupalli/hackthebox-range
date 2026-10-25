@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { labById } from "@/data/labs";
 import { quiz } from "@/data/quiz";
 import { pathOrder } from "@/data/path";
+import { RULES, take, tooMany } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -43,7 +44,8 @@ export async function GET() {
   const id = await uid();
   if (!id) return NextResponse.json({ error: "Sign in to sync progress" }, { status: 401 });
   try {
-    const rows = await prisma.progress.findMany({ where: { userId: id }, select: { kind: true, key: true, data: true } });
+    // Only what the browser syncs; exam attempts and certificates are server-only.
+    const rows = await prisma.progress.findMany({ where: { userId: id, kind: { in: ["lab", "quiz", "track"] } }, select: { kind: true, key: true, data: true } });
     return NextResponse.json({ items: rows });
   } catch {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
@@ -54,6 +56,8 @@ export async function POST(req: Request) {
   const id = await uid();
   if (!id) return NextResponse.json({ error: "Sign in to sync progress" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
+  const limit = take(`write:${id}`, RULES.write);
+  if (!limit.ok) return tooMany(limit.retryAfter);
   const items: Item[] = Array.isArray(body?.items) ? body.items.slice(0, 60) : [];
   const valid = items.filter((it) => it && ["lab", "quiz", "track"].includes(it.kind) && typeof it.key === "string" && /^[a-z0-9-]{1,40}$/.test(it.key));
   try {

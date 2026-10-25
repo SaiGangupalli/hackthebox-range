@@ -4,7 +4,7 @@ import { Icon } from "./icons";
 import { InlineCode } from "./InlineCode";
 import { Terminal } from "./labs/Terminal";
 import { Shell } from "@/lib/sim/shell";
-import { drills, drillOrder, dojoSpec, LEVELS, DOJO_ID } from "@/data/drills";
+import { drills, drillOrder, dojoSpec, LEVELS, DOJO_ID, levelTier } from "@/data/drills";
 import { passesDrill } from "@/lib/drillCheck";
 import { loadLab, saveLab, onLabChange } from "@/lib/labProgress";
 import { askTutor } from "@/lib/tutor";
@@ -20,6 +20,8 @@ export function CommandDojo() {
   const [hint, setHint] = useState(0); // 0 none · 1 hint · 2 example
   const [last, setLast] = useState<{ cmd: string; out: string; ok: boolean } | null>(null);
   const [justSolved, setJustSolved] = useState(false);
+  const [again, setAgain] = useState(false); // re-practising a drill that's already done
+  const [resetNote, setResetNote] = useState(false);
   const [prefill, setPrefill] = useState({ text: "", n: 0 });
 
   // Load saved progress (and react to account sync); start at the first unsolved drill.
@@ -40,19 +42,37 @@ export function CommandDojo() {
     setHint(0);
     setLast(null);
     setJustSolved(false);
+    setAgain(false);
+    setResetNote(false);
   }
 
   function onRun(cmd: string, out: string) {
-    if (done[cur] && !justSolved) { setLast(null); return; }
+    if (done[cur] && !again && !justSolved) { setLast(null); return; }
+    if (justSolved) return;
     const ok = passesDrill(d.check, cmd, out, shell);
     setLast({ cmd, out, ok });
-    if (ok && !done[cur]) {
+    if (!ok) return;
+    if (!done[cur]) {
       const next = [...done];
       next[cur] = true;
       setDone(next);
       saveLab(DOJO_ID, next);
-      setJustSolved(true);
     }
+    setAgain(false);
+    setJustSolved(true);
+  }
+
+  // Re-open a finished drill. Drills checked by the files you change (or the
+  // folder you're in) start from a fresh machine, so the old result can't count.
+  function practiseAgain() {
+    const c = d.check;
+    const stateful = !!(c.file || c.dir || c.missing || c.mode || c.cwd);
+    if (stateful) setShellKey((k) => k + 1);
+    setResetNote(stateful);
+    setAgain(true);
+    setJustSolved(false);
+    setHint(0);
+    setLast(null);
   }
 
   function goNext() {
@@ -75,31 +95,41 @@ export function CommandDojo() {
       </div>
 
       <div className="dojo-levels" role="tablist" aria-label="Levels">
-        {levelStats.map((l) => (
+        {levelStats.map((l) => [
+          (l.n === 1 || levelTier(l.n) !== levelTier(l.n - 1)) && <span key={`t${l.n}`} className={`dojo-tier lvl ${levelTier(l.n).toLowerCase()}`}>{levelTier(l.n)}</span>,
           <button key={l.n} role="tab" aria-selected={d.level === l.n} className={`dojo-level${d.level === l.n ? " on" : ""}${l.solved === l.total ? " done" : ""}`} onClick={() => select(l.first)}>
             <span className="dl-n">{l.solved === l.total ? <Icon name="check" /> : l.n}</span>
             <span className="dl-name">{l.name}</span>
             <span className="dl-c">{l.solved}/{l.total}</span>
-          </button>
-        ))}
+          </button>,
+        ])}
       </div>
 
       <div className={`drill${done[cur] ? " solved" : ""}`}>
         <div className="drill-top">
-          <span className="drill-lv">Level {d.level} · {LEVELS[d.level - 1]} · drill {pos + 1} of {drills.length}</span>
+          <span className="drill-lv">Level {d.level} · {LEVELS[d.level - 1]} · {levelTier(d.level)} · drill {pos + 1} of {drills.length}</span>
           {done[cur] && <span className="ok-tag"><Icon name="check" />done</span>}
         </div>
         <h2>{d.title}</h2>
         <p className="drill-task">{d.task}</p>
 
-        {justSolved || done[cur] ? (
+        {justSolved || (done[cur] && !again) ? (
           <div className="drill-win">
             <b>{justSolved ? "Nice — that's it!" : "You've already completed this drill."}</b>
             <p><InlineCode text={d.explain} /></p>
-            <button className="btn primary" onClick={goNext}>{allDone ? "Review another drill" : "Next drill →"}</button>
+            <div className="drill-actions">
+              <button className="btn primary" onClick={goNext}>{allDone ? "Review another drill" : "Next drill →"}</button>
+              <button className="btn" onClick={practiseAgain}><Icon name="zap" />Practise again</button>
+            </div>
           </div>
         ) : (
           <>
+            {again && (
+              <p className="drill-again">
+                <Icon name="zap" /> Practising again — your progress is kept.
+                {resetNote && " The practice machine was reset so you can do it from scratch."}
+              </p>
+            )}
             <div className="drill-actions">
               <button className="btn" onClick={() => setHint((h) => Math.max(h, 1))}><Icon name="book" />Hint</button>
               {hint >= 1 && <button className="btn" onClick={() => setHint(2)}><Icon name="zap" />Show an example</button>}

@@ -25,8 +25,9 @@ export type ShellSpec = {
   dirs?: string[]; // extra empty directories
   meta?: Record<string, FileMeta>;
   // Canned output for lab-specific tools: command -> key -> output. The key is
-  // tried as the full argument string, then each operand (resolved path, then
-  // literal), then "*".
+  // tried as the full argument string, then "first-operand other-operand" pairs
+  // (so `kubectl logs <pod>` and `kubectl describe pod <pod>` can differ), then
+  // each operand (resolved path, then literal), then "*".
   programs?: Record<string, Record<string, string>>;
   procs?: { user: string; pid: number; cmd: string; start?: string; cpu?: string }[]; // shown by ps aux
   ports?: { port: number; addr?: string; proc: string; pid: number }[]; // listening TCP ports, shown by ss -tln
@@ -57,7 +58,7 @@ export const HELP: Record<string, [string, string]> = {
   cat: ["print a file's contents", "cat notes.txt"],
   head: ["show the first lines of a file (-n N)", "head -n 5 access.log"],
   tail: ["show the last lines of a file (-n N)", "tail -n 5 access.log"],
-  grep: ["show lines matching a pattern (-i ignore case, -v invert, -c count, -r search folders)", 'grep -i "failed" auth.log'],
+  grep: ["show lines matching a pattern (-i ignore case, -v invert, -c count, -r search folders, -A/-B N lines after/before)", 'grep -i "failed" auth.log'],
   wc: ["count lines / words / bytes (-l = lines only)", "wc -l auth.log"],
   sort: ["sort lines (-n numbers, -r reverse)", "sort -nr counts.txt"],
   uniq: ["merge repeated neighbouring lines (-c counts them) — sort first!", "sort ips.txt | uniq -c"],
@@ -570,7 +571,8 @@ export class Shell {
     const table = this.spec.programs?.[cmd];
     if (table) {
       const operands = args.filter((a) => !/^[-+]/.test(a));
-      const keys = [args.join(" "), ...operands.flatMap((a) => [this.resolve(a), a]), "*"];
+      const pairs = operands.slice(1).map((a) => `${operands[0]} ${a}`);
+      const keys = [args.join(" "), ...pairs, ...operands.flatMap((a) => [this.resolve(a), a]), "*"];
       for (const k of keys) if (k in table) { const t = table[k]; return ok(t.endsWith("\n") || !t ? t : t + "\n"); }
     }
     const fn = BUILTINS[cmd];
@@ -809,7 +811,7 @@ const BUILTINS: Record<string, Builtin> = {
   tail: headTail("tail"),
 
   grep(sh, args, stdin) {
-    const { flags, rest } = parseArgs(args, "em");
+    const { flags, rest } = parseArgs(args, "emABC");
     let pattern: string;
     if (typeof flags.e === "string") pattern = flags.e;
     else if (rest.length) pattern = rest.shift()!;
@@ -845,19 +847,33 @@ const BUILTINS: Record<string, Builtin> = {
     }
 
     const showName = !flags.h && (recursive || targets.length > 1);
+    // Context lines: -A n after, -B n before, -C n both (separator "-" instead of ":").
+    const ctx = (f: string | true | undefined) => (typeof f === "string" ? Math.max(0, parseInt(f, 10) || 0) : 0);
+    const after = ctx(flags.A) || ctx(flags.C), before = ctx(flags.B) || ctx(flags.C);
     const out: string[] = [];
     let matched = false;
     for (const t of targets) {
       let count = 0;
       const binary = /[\x00-\x08]/.test(t.data) && !flags.a;
       const hits: string[] = [];
-      lines(t.data).forEach((line, i) => {
-        re.lastIndex = 0;
-        if (re.test(line) === !!flags.v) return;
+      const all = lines(t.data);
+      const isHit = all.map((line) => { re.lastIndex = 0; return re.test(line) !== !!flags.v; });
+      const show = new Set<number>();
+      let lastShown = -2;
+      all.forEach((line, i) => {
+        if (!isHit[i]) return;
         count++;
         const prefix = (showName ? `${t.name}:` : "") + (flags.n ? `${i + 1}:` : "");
-        if (flags.o && !flags.v) { re.lastIndex = 0; for (const m of line.matchAll(re)) hits.push(prefix + m[0]); }
-        else hits.push(prefix + line);
+        if (flags.o && !flags.v) { re.lastIndex = 0; for (const m of line.matchAll(re)) hits.push(prefix + m[0]); return; }
+        if (!after && !before) { hits.push(prefix + line); return; }
+        for (let k = Math.max(0, i - before); k <= Math.min(all.length - 1, i + after); k++) {
+          if (show.has(k)) continue;
+          if (lastShown >= 0 && k > lastShown + 1) hits.push("--");
+          show.add(k);
+          lastShown = k;
+          const sep = isHit[k] ? ":" : "-";
+          hits.push((showName ? `${t.name}${sep}` : "") + (flags.n ? `${k + 1}${sep}` : "") + all[k]);
+        }
       });
       if (count) matched = true;
       if (flags.c) out.push((showName ? `${t.name}:` : "") + count);

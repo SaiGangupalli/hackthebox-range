@@ -18,7 +18,13 @@ export default function LoginPage() {
     setErr("");
     const res = await signIn("credentials", { handle, password, redirect: false });
     setBusy(false);
-    if (res?.error) setErr("Invalid handle or password.");
+    if (res?.error) {
+      setErr(
+        res.code === "rate_limited" ? "Too many sign-in attempts. Please wait 15 minutes and try again — or ask an organizer to reset your password."
+        : res.code === "suspended" ? "This account has been suspended by the organizers."
+        : "Invalid handle or password.",
+      );
+    }
     else { router.push("/challenges"); router.refresh(); }
   }
 

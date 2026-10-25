@@ -2,7 +2,8 @@
 // and how long each is, what you need first, and what you'll be able to do
 // afterwards. Rendered on the home page and in each track's header.
 
-export type Level = "Beginner" | "Intermediate";
+export type Level = "Beginner" | "Intermediate" | "Advanced";
+export const LEVELS: Level[] = ["Beginner", "Intermediate", "Advanced"];
 
 export type PathStep = {
   slug: string;
@@ -77,6 +78,34 @@ export const path: PathStep[] = [
     prereq: ["webmobile"],
     outcomes: ["Explain direct vs. indirect prompt injection", "See why secrets in a system prompt are not secret", "Choose layered defenses and say what each one misses"],
     labId: "llm-inject",
+  },
+  {
+    slug: "devops", level: "Intermediate", minutes: 35,
+    why: "See how code travels from a laptop to production — the pipeline you'll secure in the next track.",
+    prereq: ["os"],
+    outcomes: ["Read a CI/CD pipeline file and say what runs, in what order", "Explain images, containers and pods, and read kubectl output", "Read a terraform plan before anything changes"],
+    labId: "devops-pipeline",
+  },
+  {
+    slug: "devsecops", level: "Intermediate", minutes: 35,
+    why: "Add security checks to that pipeline: secrets, dependencies, images and infrastructure code.",
+    prereq: ["devops"],
+    outcomes: ["Read secret, dependency and IaC scanner output and rank what to fix first", "Explain what an SBOM is and why it speeds up incident response", "Harden a Dockerfile and spot risky infrastructure code"],
+    labId: "devsecops-review",
+  },
+  {
+    slug: "secops", level: "Advanced", minutes: 45,
+    why: "Put it all together: hunt for what alerts missed, read detections, and work an incident end to end.",
+    prereq: ["splunk", "forensics"],
+    outcomes: ["Spot a suspicious parent → child process chain", "Recognise beaconing from connection timing", "Read a Sigma rule and say what it would catch and which ATT&CK technique it maps to"],
+    labId: "secops-hunt",
+  },
+  {
+    slug: "aisecops", level: "Advanced", minutes: 45,
+    why: "Operate AI features safely: guardrails, agent permissions, model integrity and monitoring.",
+    prereq: ["genai", "devsecops"],
+    outcomes: ["Find injected instructions hiding in retrieved documents", "Audit an agent's tool calls for data leaving the company", "Verify model files and read guardrail settings and metrics"],
+    labId: "aisecops-ops",
   },
 ];
 

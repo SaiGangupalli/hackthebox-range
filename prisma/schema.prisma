@@ -112,3 +112,14 @@ model TeamMember {
   @@map("hhb_team_member")
   @@schema("hhb")
 }
+
+// Site-wide organizer settings (announcement, hidden challenges, banned
+// players) and the admin audit log, stored as JSON values keyed by name.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("hhb_setting")
+  @@schema("hhb")
+}
