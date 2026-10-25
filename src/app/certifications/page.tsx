@@ -42,7 +42,7 @@ export default async function CertificationsPage() {
       </nav>
 
       <section id="range" className="cert-section">
-        <div className="sec-h"><Icon name="cert" />Earn a Range certificate</div>
+        <h2 className="sec-h"><Icon name="cert" />Earn a Range certificate</h2>
         <ol className="howto">
           <li><span>1</span><div><b>Meet the requirements.</b> Finish the listed tracks (mark them complete) and their labs. Your progress syncs when you&apos;re signed in.</div></li>
           <li><span>2</span><div><b>Pass the timed exam.</b> Questions are drawn at random and graded on the server; you need {rangeCerts[0].exam.pass}%. Not this time? Review and retry after {RETRY_MINUTES} minutes.</div></li>
@@ -103,7 +103,7 @@ export default async function CertificationsPage() {
       </section>
 
       <section id="industry" className="cert-section">
-        <div className="sec-h"><Icon name="resources" />Industry certifications</div>
+        <h2 className="sec-h"><Icon name="resources" />Industry certifications</h2>
         <p className="cert-intro">
           Well-known certifications grouped by area and level, with what each one proves, who it&apos;s for, and the tracks
           here that build toward it. Signed in? Generate AI practice questions on any certification&apos;s topics.
@@ -116,7 +116,7 @@ export default async function CertificationsPage() {
       </section>
 
       <section id="roadmaps" className="cert-section">
-        <div className="sec-h"><Icon name="flag" />Career roadmaps</div>
+        <h2 className="sec-h"><Icon name="flag" />Career roadmaps</h2>
         <p className="cert-intro">A suggested order for each role: tracks here, then Range certificates, then industry certifications. Skip what you already know.</p>
         <div className="road-list">
           {roadmaps.map((r) => (

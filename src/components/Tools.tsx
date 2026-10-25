@@ -25,7 +25,7 @@ function Encoder() {
   }, [input, op]);
   return (
     <div className="tool" id="tool-encoder">
-      <div className="tool-h"><Icon name="crypto" /><h3>Encoder / decoder</h3></div>
+      <div className="tool-h"><Icon name="crypto" /><h2>Encoder / decoder</h2></div>
       <div className="tool-sub">Base64, Hex, URL, ROT13, binary, Morse — the everyday CTF encodings.</div>
       <div className="field">
         <label htmlFor="encIn">input</label>
@@ -59,7 +59,7 @@ function Cipher() {
 
   return (
     <div className="tool" id="tool-cipher">
-      <div className="tool-h"><Icon name="zap" /><h3>Cipher playground</h3></div>
+      <div className="tool-h"><Icon name="zap" /><h2>Cipher playground</h2></div>
       <div className="tool-sub">Caesar with a live shift + 25-way brute force, Vigenère, and repeating-key XOR.</div>
       <div className="field">
         <label htmlFor="cipIn">text</label>
@@ -115,7 +115,7 @@ function Hashing() {
   }, [input]);
   return (
     <div className="tool" id="tool-hash">
-      <div className="tool-h"><Icon name="shield" /><h3>Hash generator</h3></div>
+      <div className="tool-h"><Icon name="shield" /><h2>Hash generator</h2></div>
       <div className="tool-sub">SHA-1 / 256 / 384 / 512 via the browser&apos;s Web Crypto API.</div>
       <div className="field">
         <label htmlFor="hashIn">input</label>
@@ -138,7 +138,7 @@ function HashId() {
   const guesses = identifyHash(input);
   return (
     <div className="tool" id="tool-hashid">
-      <div className="tool-h"><Icon name="osint" /><h3>Hash identifier</h3></div>
+      <div className="tool-h"><Icon name="osint" /><h2>Hash identifier</h2></div>
       <div className="tool-sub">Guess a hash / token type from its shape.</div>
       <div className="field">
         <label htmlFor="hidIn">hash or token</label>
@@ -168,7 +168,7 @@ function Jwt() {
   }, [input]);
   return (
     <div className="tool" id="tool-jwt">
-      <div className="tool-h"><Icon name="webmobile" /><h3>JWT decoder</h3></div>
+      <div className="tool-h"><Icon name="webmobile" /><h2>JWT decoder</h2></div>
       <div className="tool-sub">Decode header &amp; payload. Signature is <b>not</b> verified — never trust an unverified token.</div>
       <div className="field">
         <label htmlFor="jwtIn">token</label>
@@ -233,7 +233,7 @@ function Stego() {
 
   return (
     <div className="tool" id="tool-stego">
-      <div className="tool-h"><Icon name="stego" /><h3>LSB steganography</h3></div>
+      <div className="tool-h"><Icon name="stego" /><h2>LSB steganography</h2></div>
       <div className="tool-sub">Hide a message in the least-significant bits of an image, then extract it back — a self-contained demo of how stego works.</div>
       <div className="field">
         <label htmlFor="stIn">secret message</label>
@@ -274,7 +274,7 @@ export function Tools() {
       <div className="eyebrow"><Icon name="tools" />in-browser lab · nothing leaves your device</div>
       <h1 className="view-title">Lab tools</h1>
       <p className="lede">Six safe utilities that run entirely in your browser. Great for the Crypto, Stego and Web tracks — paste a CTF string and experiment.</p>
-      <div className="sec-h"><Icon name="osint" />Which tool do I need?</div>
+      <h2 className="sec-h"><Icon name="osint" />Which tool do I need?</h2>
       <div className="tool-index">
         {TOOL_INDEX.map(([id, icon, name, when]) => (
           <a key={id} className="tool-card" href={`#${id}`}>

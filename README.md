@@ -149,6 +149,12 @@ position) and give them a `level` — the page shows them grouped by level.
   inline scripts allowed because Next.js bootstraps with them), `X-Frame-Options: DENY`, `nosniff`,
   a strict referrer policy, a locked-down Permissions-Policy and, in production, HSTS.
   `X-Powered-By` is off.
+- **Share previews & search** — every page has Open Graph/Twitter metadata with a generated preview
+  image; certificate links get their own (`src/app/cert/[code]/opengraph-image.tsx`). `robots.txt`
+  keeps personal and organizer pages out of search; `sitemap.xml` lists the public ones. Set
+  `SITE_URL` so these use your real address.
+- **Accessibility** — a skip-to-content link, real heading structure, text contrast of at least 4.5:1
+  in both themes, and reduced motion when the system asks for it.
 - **Errors** — `src/app/error.tsx` and `global-error.tsx` show a calm retry screen instead of the
   framework default.
 
@@ -157,6 +163,9 @@ position) and give them a `level` — the page shows them grouped by level.
 - **My learning** — `/learning`: the next step on the path, progress by level, what to review
   (unfinished labs, quizzes below full marks), command practice by tier, certification readiness and
   challenges that match the tracks you've finished.
+- **Flashcards** — `/review`: spaced repetition (Leitner boxes 1–5; gaps of 1, 3, 7, 16 and 35 days)
+  over every glossary term and quiz question (`src/data/cards.ts`, scheduler in `src/lib/review.ts`).
+  Up to 15 new cards a day; keyboard: Space to flip, 1–4 to grade. Saved in the browser.
 - **Profiles, XP & ranks** — `/u/<handle>`. Signed-in learning progress (labs, quizzes, finished
   tracks) syncs to `hhb_progress`; XP and HTB-style ranks (Noob → Omniscient) are computed from it
   plus solved challenges. Browser-reported progress is clamped to what the content allows; the CTF

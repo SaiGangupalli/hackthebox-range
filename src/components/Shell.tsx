@@ -47,6 +47,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <a className="skip-link" href="#main">Skip to content</a>
       <header className="top">
         <div className="top-in">
           <button className="icon-btn menu-btn" aria-label="Open menu" onClick={() => setNavOpen((v) => !v)}>
@@ -114,7 +115,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="scrim" onClick={() => setNavOpen(false)} />
-        <main className="content"><div className="view"><AnnouncementBar />{children}</div></main>
+        <main className="content" id="main" tabIndex={-1}><div className="view"><AnnouncementBar />{children}</div></main>
       </div>
 
       <div className="toast" ref={toastRef} />

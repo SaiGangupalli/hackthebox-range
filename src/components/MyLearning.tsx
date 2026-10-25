@@ -10,6 +10,8 @@ import { drills, DOJO_ID, levelTier } from "@/data/drills";
 import { useProgress } from "@/lib/progress";
 import { useLabProgress, loadLab, onLabChange } from "@/lib/labProgress";
 import { useQuizProgress } from "@/lib/quizProgress";
+import { cards } from "@/data/cards";
+import { countDue, useReviewState } from "@/lib/review";
 
 export type ChallengeSummary = { id: string; title: string; track: string; points: number; level: string | null };
 export type CertSummary = { id: string; code: string; name: string; level: Level; earned: string | null; ready: boolean; met: number; total: number; next: { label: string; href?: string } | null };
@@ -24,6 +26,7 @@ export function MyLearning({ handle, challenges, solved, certs, dbError }: { han
   const labs = useLabProgress(path.map((p) => p.labId));
   const quizzes = useQuizProgress(path.map((p) => p.slug));
   const [dojo, setDojo] = useState<boolean[]>([]);
+  const fcState = useReviewState();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -73,6 +76,7 @@ export function MyLearning({ handle, challenges, solved, certs, dbError }: { han
     .sort((a, b) => a.points - b.points)
     .slice(0, 4);
   const points = challenges.filter((c) => solvedSet.has(c.id)).reduce((s, c) => s + c.points, 0);
+  const fc = countDue(cards.map((c) => c.id), fcState);
 
   return (
     <>
@@ -154,6 +158,12 @@ export function MyLearning({ handle, challenges, solved, certs, dbError }: { han
               </div>
             ))}
             <p className="ml-foot"><Link href="/commands/practice">{drillsDone ? "Continue practising" : "Start practising"} →</Link></p>
+          </section>
+
+          <section className="card">
+            <div className="sub-h" style={{ marginTop: 0 }}>Flashcards</div>
+            <p className="ml-fc"><b>{fc.due}</b> due · <b>{fc.fresh}</b> new today · <b>{fc.learned}</b>/{cards.length} learned</p>
+            <p className="ml-foot"><Link href="/review">{fc.due + fc.fresh ? "Review now (a few minutes)" : "All caught up — browse decks"} →</Link></p>
           </section>
         </div>
       </div>

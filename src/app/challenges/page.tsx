@@ -109,7 +109,7 @@ export default async function ChallengesPage() {
 
       {groups.map((g) => (
         <div key={g}>
-          <div className="sec-h"><Icon name="zap" />{g}</div>
+          <h2 className="sec-h"><Icon name="zap" />{g}</h2>
           <div className="chal-grid">
             {visible.filter((c) => c.track === g).map((c) => {
               const done = solved.has(c.id);

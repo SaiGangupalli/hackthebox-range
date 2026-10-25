@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Shell } from "@/components/Shell";
 import { Providers } from "@/components/Providers";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "H@ck1h3B0x Range",
-  description:
-    "A defensive-security CTF training hub — 9 tracks, OWASP Web & LLM Top 10, cheatsheets, and safe in-browser lab tools. For authorized / CTF use only.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  openGraph: { type: "website", siteName: SITE_NAME, title: SITE_NAME, description: SITE_DESCRIPTION },
+  twitter: { card: "summary_large_image", title: SITE_NAME, description: SITE_DESCRIPTION },
 };
 
 // Set the saved theme before paint to avoid a flash of the wrong palette.

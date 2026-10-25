@@ -15,7 +15,10 @@ async function load(code: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
   const found = await load((await params).code);
-  return { title: found ? `${found.handle} — ${found.cert.name}` : "Certificate not found · H@ck1h3B0x Range" };
+  if (!found) return { title: "Certificate not found · H@ck1h3B0x Range", robots: { index: false } };
+  const title = `${found.handle} — ${found.cert.name}`;
+  const description = `${found.handle} earned the ${found.cert.name} (${found.cert.level}) on H@ck1h3B0x Range with ${found.record.pct}% on the exam. Verify certificate ${found.record.code}.`;
+  return { title, description, openGraph: { title, description, type: "article" }, twitter: { card: "summary_large_image", title, description } };
 }
 
 // A Range certificate: printable, and anyone with the link can verify it.
