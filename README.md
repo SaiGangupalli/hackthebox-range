@@ -26,6 +26,12 @@ npm run build   # production build
 npm start       # serve the production build on :3003
 ```
 
+**Setting up on a new machine (reuses the shared DB):** `./scripts/setup.sh` checks
+Node, runs `npm install`, and writes `.env.local` — it prompts (hidden) for the Neon
+`DATABASE_URL` and `AUTH_SECRET`, or reads them from the environment. It never runs a
+migration, because the shared `hhb` schema already exists; pass `--run` to start the dev
+server afterwards.
+
 If 3003 is taken, `dev` and `start` use the next free port and print it (3002 is never used: another
 local app owns it). `PORT=4000 npm run dev` starts looking from 4000; `npm run dev -- --print-port`
 only prints the port. If this app is already running, the script says where instead of starting a
