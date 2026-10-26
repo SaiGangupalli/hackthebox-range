@@ -87,6 +87,15 @@ export const learn: Record<string, LearnTrack> = {
           read: "One source, three ports, bare SYNs in a burst — a scan in progress. The fix is rate-limiting and alerting on this pattern.",
         },
       },
+      {
+        q: "How do I find a host's IP and see which apps are running on it?",
+        a: "Three steps (authorized targets only — your own lab, like the tomjerry box). **1. Your own IP** (on Kali): `ip a` (or `ip -4 a`, `hostname -I`, older `ifconfig`) — your address tells you the subnet to look in, e.g. 192.168.244.0/24. **2. Find and scan the target** (the Ubuntu box) from Kali: `nmap -sn 192.168.244.0/24` sweeps the subnet for live hosts, then `nmap -sV 192.168.244.129` scans that host's ports and names the service **and version** behind each — that's which app is running. **3. From inside the box** (if you already have a shell on it): `ss -tlnp` (or `netstat -tlnp`) lists every listening port and the process behind it. `0.0.0.0` means reachable from the network; `127.0.0.1` means local-only. Those versions are your next lead — look them up for known issues, and for defenders, patch or close them.",
+        worked: {
+          input: "ip -4 a            # my IP on Kali\nnmap -sV 192.168.244.129   # scan the Ubuntu target\nss -tlnp           # (on the box) who's listening",
+          output: "kali: inet 192.168.244.130/24\n22/tcp   open  ssh      OpenSSH 8.9p1\n8080/tcp open  http     Apache Tomcat 9.0.50\nss: LISTEN 0 0.0.0.0:8080  users:((\"java\",pid=1021))",
+          read: "Same subnet as the target. nmap shows SSH and a Tomcat on 8080; ss confirms a java process is serving 8080 to the whole network. Now you know the app and version to investigate.",
+        },
+      },
     ],
   },
 

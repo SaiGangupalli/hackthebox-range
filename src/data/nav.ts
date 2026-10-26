@@ -31,6 +31,7 @@ export const navGroups: NavGroup[] = [
   ]},
   { g: "Lab", items: [
     { href: "/tools", name: "Lab tools", icon: "tools" },
+    { href: "/toolkit", name: "CTF toolkit", icon: "flag" },
     { href: "/commands", name: "Command handbook", icon: "os" },
     { href: "/commands/practice", name: "Command practice", icon: "zap" },
     { href: "/cheatsheet", name: "Cheatsheet (PDF)", icon: "book" },
