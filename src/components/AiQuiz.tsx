@@ -10,6 +10,8 @@ import { tracks } from "@/data/tracks";
 import { useQuizProgress } from "@/lib/quizProgress";
 
 const LEVELS = [["auto", "Match each track"], ["Beginner", "Beginner"], ["Intermediate", "Intermediate"], ["Advanced", "Advanced"]] as const;
+// Click-to-fill suggestions for the Focus field.
+const FOCUS_PRESETS = ["SQL injection", "XSS", "JWT attacks", "Wireshark filters", "classical ciphers (Atbash)", "CVSS scoring", "Linux privilege escalation", "Android manifest", "prompt injection", "log analysis (SPL)"];
 type Level = (typeof LEVELS)[number][0];
 type Settings = { slugs: string[]; level: Level; count: 5 | 10; focus: string };
 type Round = { settings: Settings; questions: Question[]; backup: boolean; n: number };
@@ -121,6 +123,12 @@ export function AiQuiz({ preset, compact = false, autostart = false, onClose }: 
       <div className="cc-row">
         <label className="cc-label" htmlFor="aiq-focus">Focus</label>
         <input id="aiq-focus" className="aiq-focus" maxLength={80} value={s.focus} placeholder="optional — e.g. Wireshark filters, JWT attacks, phishing emails" onChange={(e) => setS((x) => ({ ...x, focus: e.target.value }))} />
+      </div>
+      <div className="cc-row" role="group" aria-label="Focus suggestions">
+        <span className="cc-label">Try</span>
+        {FOCUS_PRESETS.map((f) => (
+          <button key={f} className={`chip-btn${s.focus === f ? " on" : ""}`} aria-pressed={s.focus === f} onClick={() => setS((x) => ({ ...x, focus: f }))}>{f}</button>
+        ))}
       </div>
       <div className="aiq-go">
         <button className="btn primary" disabled={!!busy || !s.slugs.length} onClick={() => generate(s)}><Icon name="llm" />Generate {s.count} questions</button>
