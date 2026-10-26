@@ -3,7 +3,14 @@
 // deterministically so the answer isn't always in the same place. `why` is the
 // plain-English explanation shown after answering.
 
-export type Question = { q: string; right: string; wrong: string[]; why: string };
+export type Question = {
+  q: string;
+  right: string;
+  wrong: string[];
+  why: string;
+  snippet?: string; // a log, command output or config the question asks you to read (AI-written questions)
+  sig?: string; // AI-written questions: the server's signature, so they can be sent back to it (src/lib/ai/signed.ts)
+};
 
 export const quiz: Record<string, Question[]> = {
   os: [

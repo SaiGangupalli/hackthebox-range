@@ -24,14 +24,19 @@ export function CommandDojo() {
   const [resetNote, setResetNote] = useState(false);
   const [prefill, setPrefill] = useState({ text: "", n: 0 });
 
-  // Load saved progress (and react to account sync); start at the first unsolved drill.
+  // Load saved progress (and react to account sync); start at the drill named
+  // in the link (/commands/practice#grep-v, from the handbook), else the first unsolved one.
   useEffect(() => {
     const load = () => setDone(loadLab(DOJO_ID, drills.length));
     const first = loadLab(DOJO_ID, drills.length);
+    const linked = () => drills.findIndex((x) => x.id === decodeURIComponent(location.hash.slice(1)));
     setDone(first);
-    setCur(drillOrder.find((k) => !first[k]) ?? drillOrder[0]);
-    return onLabChange(DOJO_ID, load);
-  }, []);
+    setCur(linked() >= 0 ? linked() : drillOrder.find((k) => !first[k]) ?? drillOrder[0]);
+    const onHash = () => { if (linked() >= 0) select(linked()); };
+    window.addEventListener("hashchange", onHash);
+    const off = onLabChange(DOJO_ID, load);
+    return () => { window.removeEventListener("hashchange", onHash); off(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const d = drills[cur];
   const pos = drillOrder.indexOf(cur); // where this drill sits in the level-by-level order

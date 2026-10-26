@@ -7,18 +7,24 @@ organizer console (`/admin`) unless it says otherwise. Your handle must be liste
 ## The week before
 
 **Host it next to the database.** The database is on Neon in AWS `ap-southeast-1` (Singapore).
-Each page makes a few queries in a row, so the distance between the app and the database adds up.
-From a laptop about 70 ms away, a burst of 300 players arriving in 15 seconds took up to 2.5 s per
-page. Hosted in the same region, each query takes a millisecond or two.
+Every database query waits for the round trip, so the distance between the app and the database adds
+up. From a laptop about 70 ms away, a burst of 300 players arriving in 15 seconds still got every
+request back within about a second (see the load test below). Hosted in the same region, each query
+takes a millisecond or two, which leaves plenty of headroom.
 
-**Run one instance.** Rate limits and the settings cache live in memory. Two instances behind a
-load balancer would each keep their own, which halves the protection and delays organizer changes.
+**Run one instance.** Rate limits, the settings cache and the shared page cache live in memory. Two
+instances behind a load balancer would each keep their own, which halves the protection and delays
+organizer changes.
+
+**Start it with `npm start`**, not `next start` directly: it sizes Node's thread pool to the machine
+(`UV_THREADPOOL_SIZE`), so a burst of sign-ins hashes passwords on every core instead of four. If your
+platform runs `next start` itself, set `UV_THREADPOOL_SIZE` to the number of CPU cores (up to 16).
 
 **Set the environment** (see `.env.example`):
 
 | Variable | What to set |
 |---|---|
-| `DATABASE_URL` | Neon's **pooled** connection string. For more than ~150 players, add `&connection_limit=40`. The database is shared with another app, so don't go much higher. |
+| `DATABASE_URL` | Neon's **pooled** connection string. For more than ~300 players, add `&connection_limit=40`. The database is shared with another app, so don't go much higher. |
 | `AUTH_SECRET` | A long random value (`npx auth secret`). Keep it the same across restarts, or everyone is signed out. |
 | `ADMIN_HANDLES` | Your organizers' handles, comma-separated. |
 | `SITE_URL` | The public address, e.g. `https://range.example.org` (used in share previews, certificate links and the sitemap). |
@@ -51,12 +57,17 @@ interrupted, `npm run loadtest -- --cleanup` removes them). Look for `failed 0` 
 **restart the server**: the test fills the rate-limit counters for your IP, and a restart clears
 them. Sessions survive restarts.
 
-What it looked like in testing (production build, database 70 ms away):
+What it looked like in testing (production build, default connection pool, database 70 ms away):
 
-| Players arriving | Got through | Slowest 5% of pages |
-|---|---|---|
-| 150 over 30 s | 150/150 | under 1 s |
-| 300 over 15 s, `connection_limit=40` | 300/300 | about 2.5 s |
+| Players arriving | Got through | Slowest 5% of requests | Throughput |
+|---|---|---|---|
+| 150 over 30 s | 150/150 | under 1 s | — |
+| 300 over 15 s | 300/300 | under 1 s (worst single request 1.3 s) | 209 requests/s |
+
+The scoreboard, the activity feed and challenge solve counts are the same for everyone, so they're
+shared for 5 seconds: a burst of players costs one database read. Each player's own solves, score and
+rank are always fresh. The scoreboard therefore lags a solve by up to 5 seconds, and the page says so.
+Bans clear the shared copy straight away.
 
 **Set the event times** in `/admin` → *Event times*: start, end, and optionally a scoreboard
 freeze (for example, the last hour). Times are entered in your browser's timezone, which is shown

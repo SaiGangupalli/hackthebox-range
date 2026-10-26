@@ -7,6 +7,7 @@ import { currentAdmin, isAdminHandle } from "@/lib/admin";
 import { getSite, setAnnouncement, setEventTimes, setHidden, setBanned, audit } from "@/lib/settings";
 import { timesProblem, type EventTimes } from "@/lib/event";
 import { reset } from "@/lib/rateLimit";
+import { invalidate } from "@/lib/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
       if (action === "ban" && (user.id === admin.id || isAdminHandle(user.handle))) return NextResponse.json({ error: "Organizers can't be banned here — remove them from ADMIN_HANDLES first." }, { status: 400 });
       const { banned } = await getSite();
       await setBanned(action === "ban" ? [...banned, user.id] : banned.filter((b) => b !== user.id));
+      invalidate("board:", "feed:", "first:", "challenge-stats"); // show the change now, not in a few seconds
       await audit(admin.handle, action === "ban" ? "banned player" : "unbanned player", user.handle);
       return NextResponse.json({ ok: true });
     }

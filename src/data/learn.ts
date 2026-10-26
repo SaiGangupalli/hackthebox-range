@@ -18,6 +18,9 @@ export type LearnTrack = {
   cards: Explainer[];
 };
 
+/** Stable anchor for a lesson on its track page, made from its question (/tracks/secops#lesson-what-is-mitre-att-ck). */
+export const lessonId = (q: string) => "lesson-" + q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+
 export const learn: Record<string, LearnTrack> = {
   osint: {
     intro:
@@ -178,6 +181,15 @@ export const learn: Record<string, LearnTrack> = {
         },
       },
       {
+        q: "How do I recognise a classical cipher?",
+        a: "Look at the *shape*, then pick the reverse. **Atbash** mirrors the alphabet (A↔Z, B↔Y) — no key, and its own inverse; a giveaway is that common words become fixed patterns (SUBSTITUTION reads as `HFYHGRGFGRLM`). **Caesar / ROT** shifts every letter the same amount — brute-force all 25. **Vigenère** shifts by a repeating keyword, so the same plaintext letter encrypts differently in different places; you need the key (or guess a short one). A general **substitution** swaps each letter for another fixed one — crack it with letter frequency. If it's capitals/digits with `=`, that's Base64, not a cipher at all. The Range's Encoder (Atbash, ROT13) and Cipher playground (Caesar brute force, Vigenère) reverse all of these.",
+        worked: {
+          input: "HFYHGRGFGRLM   (Atbash)",
+          output: "H→S F→U Y→B H→S G→T R→I G→T F→U G→T R→I L→O M→N  =  SUBSTITUTION",
+          read: "Even the flag's HHB{ becomes SSY{ — letters move but braces stay. Apply Atbash again (it's its own inverse) to read it.",
+        },
+      },
+      {
         q: "How do I identify a hash?",
         a: "By length and alphabet. 32 hex characters is usually MD5; 40 is SHA-1; 64 is SHA-256; 128 is SHA-512. A hash is one-way — you don’t “decrypt” it, you compare or crack it against guesses.",
         worked: {
@@ -218,6 +230,24 @@ export const learn: Record<string, LearnTrack> = {
           input: "GET /invoice?id=1001   →   GET /invoice?id=1002",
           output: "200 OK — invoice for a different customer",
           read: "The server returned another user’s record. The fix: on every request, confirm the logged-in user owns that object before returning it.",
+        },
+      },
+      {
+        q: "What is a penetration test, and how is it different from a scan?",
+        a: "A **penetration test** is an authorized, scoped, time-boxed attempt to break into a system the way a real attacker would — to find weaknesses before criminals do. A vulnerability **scan** lists *possible* issues; a pentest *proves* which are actually exploitable and how far they go, then writes it up. It runs in phases: **recon** (public information), **enumeration** (hosts, services, versions), **exploitation** (safely confirm a flaw is real), **post-exploitation** (assess impact within scope), and **reporting** (findings, CVSS severities and fixes, worst first). What makes it legal rather than a crime is the **rules of engagement**: a written agreement on what's in scope, what's off-limits, when to test and who to call. This range only ever practises on its own simulators and systems you're allowed to test.",
+        worked: {
+          input: "Scope: app.acme-staging.example only · no DoS · test 02:00–06:00 IST\nFinding: SQL injection in /api/orders (CVSS 9.8, Critical)",
+          output: "Report → Critical: SQLi in /api/orders. Fix: parameterised queries. Retest after fix.",
+          read: "In scope, evidence captured, scored and handed over with a fix. The report — not the access — is the deliverable.",
+        },
+      },
+      {
+        q: "What tools do web pentesters use (for authorized testing)?",
+        a: "On a web engagement you'll meet an **intercepting proxy** — **Burp Suite** or **OWASP ZAP** — that sits between the browser and the app so you can read and modify each request; ZAP also runs as an automated DAST scanner. **nmap** maps hosts and open ports; **ffuf**/**gobuster** fuzz for hidden paths and parameters; **nikto** checks a web server for known issues. For APIs, **42Crunch** audits against the OpenAPI spec. The same categories you meet in the pipeline apply — SAST, SCA and DAST — but a tester chains them with manual testing and judgement. Everything here assumes written authorization and scope; the identical techniques against a system you don't own are illegal.",
+        worked: {
+          input: "ffuf -w words.txt -u https://app.acme-staging.example/FUZZ",
+          output: "admin        [Status: 200]\nbackup.zip   [Status: 200]\n.git/        [Status: 301]",
+          read: "Fuzzing found an exposed admin page, a backup and a .git folder — each a lead to chase (and, for the defender, to lock down).",
         },
       },
     ],
@@ -288,6 +318,24 @@ export const learn: Record<string, LearnTrack> = {
           read: "Two files recovered straight from the byte stream — found by their signatures, not by any filesystem listing.",
         },
       },
+      {
+        q: "What do I collect first, and how do I keep evidence trustworthy?",
+        a: "Collect in order of volatility — whatever disappears first: memory (RAM), running processes and network connections, then the disk, then logs and backups. A reboot wipes memory, so isolate a live machine from the network instead of switching it off. Hash every item as you collect it and record who handled it, when and why — the chain of custody — so the evidence still holds up later.",
+        worked: {
+          input: "sha256sum memory.raw disk.img | tee evidence.sha256",
+          output: "4f1c…9a2e  memory.raw\n0b7d…31c4  disk.img",
+          read: "Both images are fingerprinted the moment they're collected. Write the time and your name next to them; anyone can re-run sha256sum later to prove nothing changed.",
+        },
+      },
+      {
+        q: "Where do flags (and secrets) hide in files and systems?",
+        a: "The same few places, over and over — the “Where flags hide” lab drills all of them. **Document & image metadata**: author, keywords and comments in an Office file's `docProps/core.xml` (an Office file is a zip) or a photo's EXIF. **Deleted files**: on Windows the `$Recycle.Bin` keeps a `$I` record (original name/time) and a `$R` file (the actual data) — deletion just unlinks the name, so the bytes survive. **Browsers**: saved logins live in `logins.json` encrypted with `key4.db`; anyone with the profile can decrypt them (firefox_decrypt). **Binaries**: literal strings — flags, URLs, keys — sit in the clear; `strings` or a PE editor like CFF Explorer pulls them out. **Credential stores**: Jenkins keeps credentials in `credentials.xml`, encrypted with the keys in `secrets/` (master.key + hudson.util.Secret). And remember base64 is encoding, not encryption — a “note” in base64 is readable by anyone.",
+        worked: {
+          input: "cat invoice/docProps/core.xml\nstrings app.exe | grep -i ctf\ncat 'recovery/$Recycle.Bin/$R_____.txt'",
+          output: "<dc:description>HHB{…}</dc:description>\nHHB{str1ngs_sp1ll_s3cr3ts}\nHHB{d3l3t3d_n0t_g0n3}",
+          read: "Three different hiding places, three plain `cat`/`strings` reads. When you're stuck, check metadata, deleted files, strings and saved credentials before anything clever.",
+        },
+      },
     ],
   },
 
@@ -349,7 +397,7 @@ export const learn: Record<string, LearnTrack> = {
       },
       {
         q: "What is infrastructure as code?",
-        a: "Servers, networks and storage described in files (for example Terraform) instead of clicked together by hand. Changes are reviewed like code. `terraform plan` shows what will be added (+), changed (~) and destroyed (-) before anything happens.",
+        a: "Servers, networks and storage described in files (for example Terraform) instead of clicked together by hand. Changes are reviewed like code. `terraform plan` shows what will be added (+), changed (~) and destroyed (-) before anything happens. Terraform's state file lists everything it manages, often with secrets in plain text, so keep it in an encrypted, access-controlled backend — never in Git.",
         worked: {
           input: "terraform plan",
           output: "-/+ aws_instance.web  (must be replaced)\n  + aws_security_group_rule.debug\nPlan: 2 to add, 1 to change, 1 to destroy.",
@@ -359,6 +407,24 @@ export const learn: Record<string, LearnTrack> = {
       {
         q: "Who secures what in the cloud?",
         a: "The shared responsibility model: the cloud provider secures the data centres, hardware and their own services; you secure what you put on top — your settings, identities, data and code. Most cloud breaches are customer misconfigurations, like a storage bucket left public.",
+      },
+      {
+        q: "How do I protect the pipeline itself?",
+        a: "The pipeline can deploy to production, so attackers target it. Protect the main branch so every change needs a review and passing checks before it merges. Give each job only the permissions it needs. And get cloud credentials through OIDC — short-lived credentials issued for a single run — instead of storing long-lived keys as pipeline secrets, where they can leak.",
+        worked: {
+          input: "cat .github/workflows/deploy.yml",
+          output: "permissions:\n  contents: read\n  id-token: write\nsteps:\n  - uses: aws-actions/configure-aws-credentials@v4\n    with:\n      role-to-assume: arn:aws:iam::111122223333:role/deploy",
+          read: "The job may only read the code and ask for an OIDC token; AWS swaps that token for short-lived credentials of the deploy role. There's no stored access key to steal.",
+        },
+      },
+      {
+        q: "How do I lock down a Kubernetes workload?",
+        a: "Run containers as a non-root user, never with `privileged: true`, and with a read-only filesystem where you can. Give each app its own service account with only the RBAC permissions it needs. Add NetworkPolicies so pods can only talk to what they should. And remember that Secrets are only Base64-encoded unless encryption at rest is turned on, so limit who can read them.",
+        worked: {
+          input: "kubectl get pod shop-7d9c5b-4kq8n -o yaml | grep -A2 securityContext",
+          output: "    securityContext:\n      privileged: true\n      runAsUser: 0",
+          read: "This pod runs as root (user 0) and privileged — close to full control of the node if the app is broken into. Set `privileged: false` and `runAsNonRoot: true`.",
+        },
       },
     ],
   },
@@ -378,7 +444,7 @@ export const learn: Record<string, LearnTrack> = {
       },
       {
         q: "What is dependency scanning (SCA) and an SBOM?",
-        a: "Your app is mostly other people's code. A dependency scanner compares the versions you use against public vulnerability lists (CVEs). An SBOM (software bill of materials) is the ingredient list of a build, so when a new vulnerability is announced you can answer \"are we affected?\" in seconds.",
+        a: "Your app is mostly other people's code. A dependency scanner compares the versions you use against public vulnerability lists (CVEs). An SBOM (software bill of materials) is the ingredient list of a build, so when a new vulnerability is announced you can answer \"are we affected?\" in seconds. Fix in order of severity and exposure together: a critical flaw in an internet-facing service comes before one in an internal test tool.",
         worked: {
           input: "trivy fs .",
           output: "minimist  CVE-2021-44906  CRITICAL  1.2.5 → fixed in 1.2.6\nlodash    CVE-2021-23337  HIGH      4.17.20 → fixed in 4.17.21",
@@ -403,6 +469,51 @@ export const learn: Record<string, LearnTrack> = {
           read: "The invoices bucket can be read by anyone on the internet. Remove the public-read ACL and turn on the account's public-access block.",
         },
       },
+      {
+        q: "What's the difference between SAST and DAST?",
+        a: "SAST (static application security testing) reads your source code without running it and flags risky patterns, such as user input flowing into a SQL query — early, and pointing at the exact line. DAST (dynamic testing) attacks the running app from the outside with crafted requests, finding what's actually exploitable once deployed. Together with dependency scanning (SCA), pipelines usually run all three.",
+        worked: {
+          input: "semgrep scan --config auto src/",
+          output: "src/orders.js:42  sql-injection\n  db.query(\"SELECT * FROM orders WHERE id = \" + req.query.id)",
+          read: "Line 42 builds SQL by gluing in user input. Use a parameterised query (`WHERE id = ?`); a DAST scan of the running shop would confirm whether it was exploitable.",
+        },
+      },
+      {
+        q: "How do signing and SLSA protect the software supply chain?",
+        a: "Attackers target the path from code to production: a look-alike package (`reqeusts` instead of `requests`), a hijacked dependency, or a tampered build. Pin and review dependencies, sign what you build — Sigstore's `cosign` proves who built an image and that it hasn't changed since — and only deploy images whose signatures verify. SLSA is a set of levels for how trustworthy a build's provenance (its record of how it was built) is; higher levels need a hardened build platform whose provenance can't be forged.",
+        worked: {
+          input: "cosign verify --key cosign.pub registry.example.com/shop:1.4.2",
+          output: "Verification for registry.example.com/shop:1.4.2 --\nThe following checks were performed on each of these signatures:\n  - The cosign claims were validated\n  - The signatures were verified against the specified public key",
+          read: "The image was signed with your team's key and hasn't changed since. Make the cluster refuse any image that fails this check, and a modified one can't slip in.",
+        },
+      },
+      {
+        q: "Which scanner catches which problem (SAST, DAST, SCA, MAST)?",
+        a: "Each kind of scanner sees a different part of the picture, so pipelines run several. **SAST** (static) reads your source without running it — SonarQube, Fortify, Checkmarx, Semgrep, CodeQL. **DAST** (dynamic) attacks the running app from outside — OWASP ZAP, Burp Suite; **42Crunch** does this for APIs against their OpenAPI spec. **IAST** sits inside the running app and watches real requests, confirming what's truly reachable. **SCA** (software composition analysis) checks your third-party libraries against known-vulnerability lists — Trivy, Grype, Snyk, Black Duck, Dependabot, OWASP Dependency-Check. **MAST** does SAST+DAST for a mobile build — MobSF, and the mobile modes of Fortify and Checkmarx. SAST finds a flaw early and points at the line but cries wolf; DAST proves exploitability but only on paths it reaches. Run them together and trust findings two tools agree on.",
+        worked: {
+          input: "# in one pipeline\nsemgrep --config auto src/   # SAST: the code\ntrivy fs .                   # SCA: the dependencies\nzap-baseline.py -t $URL      # DAST: the running app",
+          output: "semgrep: src/orders.js:42 sql-injection\ntrivy:   minimist 1.2.5 CRITICAL (fixed 1.2.6)\nzap:     FAIL SQL Injection GET /api/orders?id=...",
+          read: "Three tools, three angles on the same app. SAST and DAST both point at the orders query — a finding confirmed twice is one to fix first.",
+        },
+      },
+      {
+        q: "How do I find and fix a vulnerable dependency?",
+        a: "Your app is mostly other people's code, and most vulnerable code arrives as a **transitive** dependency — something a library you added pulled in. An SCA scanner compares every version you ship against CVE lists and, crucially, prints the **fixed version** next to each finding, so the fix is usually \"upgrade to this version or later\". Work in order of severity **and** exposure: a Critical in an internet-facing service beats a High in an internal tool. When the vulnerable package is transitive, upgrade the parent that pulls it in, or add a version override/resolution so the whole tree resolves the fixed one. Keep an SBOM for every release so that when tomorrow's CVE lands you can answer \"are we affected?\" in seconds.",
+        worked: {
+          input: "trivy fs .",
+          output: "Library   Severity  Installed  Fixed in  \nminimist  CRITICAL  1.2.5      1.2.6     (via mkdirp)\nlodash    HIGH      4.17.20    4.17.21   (direct)",
+          read: "Fix the CRITICAL first. minimist is pulled in by mkdirp, so upgrade mkdirp (or override) to get 1.2.6; bump lodash to 4.17.21 directly.",
+        },
+      },
+      {
+        q: "How do I score a vulnerability with CVSS?",
+        a: "**CVSS** (Common Vulnerability Scoring System) turns a flaw into a 0–10 number so a team can rank work objectively. The base score comes from a vector: how it's reached — Attack Vector (Network/Adjacent/Local/Physical), Attack Complexity, Privileges Required, User Interaction, Scope — and its impact on Confidentiality, Integrity and Availability. Bands: 0.1–3.9 Low, 4.0–6.9 Medium, 7.0–8.9 High, 9.0–10.0 Critical. The worst case — reachable over the network, no privileges, no interaction, high impact everywhere — lands at 9.8. But severity isn't the same as **priority**: a Critical nobody can reach may wait behind a Medium that's exposed to the internet, so weigh exploitability and exposure alongside the score.",
+        worked: {
+          input: "cvss CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          output: "Base score: 9.8 (Critical)\n  Exploitability 3.9 · Impact 5.9",
+          read: "Network-reachable, trivial to exploit, full impact — the classic 9.8. A score like 5.3 (an info leak) can wait behind it.",
+        },
+      },
     ],
   },
 
@@ -421,7 +532,7 @@ export const learn: Record<string, LearnTrack> = {
       },
       {
         q: "What is beaconing?",
-        a: "Malware on an infected machine \"checks in\" with its controller on a timer. In connection logs that looks like the same host contacting the same destination at regular intervals — every 60 seconds, all day. Normal browsing is bursty and irregular.",
+        a: "Malware on an infected machine \"checks in\" with its controller on a timer. In connection logs that looks like the same host contacting the same destination at regular intervals — every 60 seconds, all day. Normal browsing is bursty and irregular. Data can also leave inside DNS lookups: many long, random-looking subdomains of one domain point to DNS tunnelling.",
         worked: {
           input: "grep 198.51.100.23 proxy.log | head -n 4",
           output: "09:42:05 10.1.4.27 198.51.100.23 412\n09:43:05 10.1.4.27 198.51.100.23 409\n09:44:05 10.1.4.27 198.51.100.23 415\n09:45:05 10.1.4.27 198.51.100.23 411",
@@ -430,7 +541,7 @@ export const learn: Record<string, LearnTrack> = {
       },
       {
         q: "What is a Sigma rule?",
-        a: "A detection written once in a shared YAML format, then converted to the search language of any SIEM (Splunk, Elastic, Sentinel…). It says which logs to look at, what to match, and how serious a match is. Tags map it to MITRE ATT&CK techniques.",
+        a: "A detection written once in a shared YAML format, then converted to the search language of any SIEM (Splunk, Elastic, Sentinel…). It says which logs to look at, what to match, and how serious a match is. Tags map it to MITRE ATT&CK techniques. A `filter` block lists known-good exceptions (`condition: selection and not filter`): when a rule is noisy, tune it with specific exclusions rather than deleting it.",
         worked: {
           input: "cat rules/office_spawns_shell.yml",
           output: "detection:\n  selection:\n    ParentImage|endswith: '\\WINWORD.EXE'\n    Image|endswith: '\\powershell.exe'\n  condition: selection\ntags: [attack.t1059.001]",
@@ -441,6 +552,51 @@ export const learn: Record<string, LearnTrack> = {
         q: "What happens in incident response?",
         a: "A practised sequence: prepare, detect and analyse, contain, eradicate, recover, then learn lessons (the NIST incident-handling cycle). Containing first — isolating the host, disabling the stolen account — stops the damage spreading while you investigate.",
       },
+      {
+        q: "What is MITRE ATT&CK?",
+        a: "A public catalogue of how real attackers operate. It's organised as tactics — the attacker's goal at each step, such as Initial Access, Persistence or Lateral Movement — and techniques, how they reach it, each with an ID. T1059 is Command and Scripting Interpreter, and T1059.001 its PowerShell sub-technique. Tagging detections and findings with these IDs shows which steps of an attack you'd catch, and where the gaps are.",
+        worked: {
+          input: "grep tags rules/*.yml",
+          output: "rules/office_spawns_shell.yml:tags: [attack.execution, attack.t1059.001]\nrules/new_service.yml:tags: [attack.persistence, attack.t1543.003]\nrules/rdp_admin.yml:tags: [attack.lateral_movement, attack.t1021.001]",
+          read: "Each rule names a tactic (execution, persistence, lateral movement) and a technique: PowerShell, a new Windows service, Remote Desktop. Lay your rules over the ATT&CK matrix and the empty columns are your blind spots.",
+        },
+      },
+      {
+        q: "What is threat intelligence, and what is the Pyramid of Pain?",
+        a: "Threat intelligence is what's known about attackers: indicators such as file hashes, IP addresses and domains, and their behaviour — TTPs (tactics, techniques and procedures). The Pyramid of Pain ranks these by how much it hurts an attacker when you detect them: hashes and IPs are trivial to change, domains and tools take more effort, and TTPs are hardest of all. Blocklists help for a day; detections built on behaviour keep working.",
+        worked: {
+          input: "cat intel/report-0425.txt",
+          output: "Hash:    9f2c…e41a            (changes every build)\nIP:      203.0.113.77         (rotated weekly)\nDomain:  cdn-update.example.net\nTTP:     Office macro starts PowerShell, which downloads a payload (T1059.001)",
+          read: "Block the hash, IP and domain today — but expect them to change. The TTP line is the lasting value: a detection for Office starting PowerShell also catches the next campaign.",
+        },
+      },
+      {
+        q: "Which Windows and Sysmon events should I know?",
+        a: "In the Windows Security log: 4624 is a successful logon, 4625 a failed one, 4688 a new process, 4720 a new user account, 4732 a user added to a security group, and 1102 the audit log being cleared. 7045 in the System log is a new service. The logon type says how someone logged on: 2 at the keyboard, 3 over the network, 10 by Remote Desktop. Sysmon adds detail: event 1 is process creation with its command line and parent, 3 a network connection, 11 a file created, 22 a DNS query.",
+        worked: {
+          input: "grep -E 'EventID=462[45]' security.log | tail -n 4",
+          output: "02:14:09 EventID=4625 User=admin  LogonType=3 Src=203.0.113.66\n02:14:12 EventID=4625 User=admin  LogonType=3 Src=203.0.113.66\n02:14:15 EventID=4625 User=backup LogonType=3 Src=203.0.113.66\n02:14:18 EventID=4624 User=backup LogonType=3 Src=203.0.113.66",
+          read: "Failed network logons (4625, type 3) from one address, then a success (4624) as backup from the same address: a guessing attack that worked. Disable the account, then look at what it did next.",
+        },
+      },
+      {
+        q: "How do attackers move laterally, and how do I spot it?",
+        a: "After the first foothold, attackers reuse stolen credentials to log on to other machines — over Remote Desktop, admin shares, WinRM or remote services — working toward servers and admin accounts. Credentials often come from password spraying: a few common passwords tried against many accounts, slowly enough to avoid lockouts. Signs to hunt for: one account logging on to many hosts it has never used, admin logons from an ordinary workstation, and new services or scheduled tasks appearing on the machines it reached.",
+        worked: {
+          input: "grep svc_backup logons.csv | cut -d, -f2,3 | sort -u",
+          output: "WS-0142,DC-01\nWS-0142,FS-01\nWS-0142,HR-07\nWS-0142,SQL-02",
+          read: "A backup service account logged on from one ordinary workstation to four servers, including a domain controller. Service accounts don't do that: isolate WS-0142 and reset the account's password.",
+        },
+      },
+      {
+        q: "How do I check a suspicious file safely?",
+        a: "Never open it on your own machine. Start with static triage: hash it with `sha256sum` and look the hash up in threat-intel sources, check its real type with `file`, and read its readable text with `strings` for URLs, commands or IP addresses. YARA rules describe the strings and patterns of known malware families, so one scan can match a file against many of them. Anything that means running the file belongs in an isolated sandbox.",
+        worked: {
+          input: "strings invoice.pdf.exe | grep -iE 'http|powershell'",
+          output: "powershell -nop -w hidden -enc SQBFAFgA…\nhttp://203.0.113.77/stage2.bin",
+          read: "A \"PDF\" whose name really ends in .exe, carrying a hidden PowerShell command and a download address: a loader. Block the address, search other machines for the file's hash, and hand it to a sandbox.",
+        },
+      },
     ],
   },
 
@@ -450,7 +606,7 @@ export const learn: Record<string, LearnTrack> = {
     cards: [
       {
         q: "How do I threat-model an AI app?",
-        a: "Draw how data flows: user → app → model → tools, plus the documents it retrieves (RAG). Then ask at each arrow: can untrusted text reach the model? What can the model make the app do? Which data could leak? OWASP's LLM Top 10 and MITRE ATLAS list the usual answers.",
+        a: "Draw how data flows: user → app → model → tools, plus the documents it retrieves (RAG). Then ask at each arrow: can untrusted text reach the model? What can the model make the app do? Which data could leak? OWASP's LLM Top 10 lists the usual answers, and MITRE ATLAS catalogues real attacks on AI systems in the same style as ATT&CK.",
       },
       {
         q: "What is RAG poisoning?",
@@ -478,6 +634,32 @@ export const learn: Record<string, LearnTrack> = {
           output: "base-model.safetensors: OK\nclassifier-adapter.safetensors: FAILED",
           read: "The adapter changed after its hash was recorded. Don't load it — restore it from a trusted copy and find out who changed it.",
         },
+      },
+      {
+        q: "How do I evaluate and red-team an AI app?",
+        a: "Evaluations are tests for AI behaviour: a fixed set of prompts — including prompt-injection and data-leak attempts — with checks on the answers, run in CI so a new model or prompt can't ship if it gets worse. Red teaming is the creative side: authorised people and tools deliberately try to make the system misbehave, within an agreed scope. Every failure they find becomes a new evaluation case.",
+        worked: {
+          input: "npm run evals",
+          output: "prompt-injection   48/50 passed\ndata-leak          50/50 passed\nrefuses-unsafe     49/50 passed\nFAIL: 3 regressions vs main — release blocked",
+          read: "Two injection cases and one safety case got worse with the new prompt. Fix them before release: the suite works like unit tests for the model's behaviour.",
+        },
+      },
+      {
+        q: "What are privacy attacks on AI models?",
+        a: "A model can give away what it learned from. Membership inference works out whether a specific record was in the training data; model inversion reconstructs what typical training examples looked like; training-data extraction coaxes the model into repeating memorised text, such as someone's email address. Defences: keep personal data out of training and fine-tuning sets, or minimise and anonymise it; limit and monitor queries; and test for memorisation before release. Data poisoning is the reverse — crafted training data that plants a backdoor or bias.",
+      },
+      {
+        q: "What should I log and monitor for an AI app?",
+        a: "Log each prompt and response (with personal data redacted), every tool call and where it went, guardrail and refusal events, and tokens and cost per user. Alert on the unusual: tool calls to new external destinations, a spike in blocked prompts, or one user's usage jumping. Capping tokens, requests and tool calls per user prevents unbounded consumption — runaway bills and denial of service.",
+        worked: {
+          input: "cut -d, -f2 usage.csv | sort | uniq -c | sort -nr | head -n 3",
+          output: "  41022 user_8812\n    912 user_1044\n    877 user_3310",
+          read: "One user made 45 times more requests than the next: a script or a stolen key. Rate-limit it now, then check what it was asking for.",
+        },
+      },
+      {
+        q: "Which frameworks govern AI?",
+        a: "The NIST AI Risk Management Framework organises AI risk work into four functions: Govern (policies and roles), Map (the context and its risks), Measure (testing and metrics) and Manage (acting on the risks). ISO/IEC 42001 sets requirements for an organisation's AI management system, and organisations can be certified against it, much as ISO/IEC 27001 does for security. The EU AI Act sorts AI systems into risk tiers, with the strictest duties for high-risk uses.",
       },
     ],
   },

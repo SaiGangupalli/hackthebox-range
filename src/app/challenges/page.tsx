@@ -12,6 +12,7 @@ import { HintButton, VoteControl } from "@/components/ChallengeExtras";
 import { EventBanner } from "@/components/EventBanner";
 import { siteOrDefault, getEvent } from "@/lib/settings";
 import { isAdminHandle } from "@/lib/admin";
+import { cached } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Challenges · H@ck1h3B0x Range" };
@@ -46,10 +47,19 @@ export default async function ChallengesPage() {
   let dbOk = true;
 
   try {
-    const [allSolves, votes, myHints] = await Promise.all([
-      prisma.solve.findMany({ select: { challengeId: true, userId: true, points: true, createdAt: true, user: { select: { handle: true } } }, orderBy: { createdAt: "asc" } }),
-      prisma.vote.groupBy({ by: ["challengeId"], _avg: { rating: true }, _count: { _all: true } }),
+    // Solve counts, first bloods and ratings are the same for everyone, so they're
+    // shared for a few seconds; your own solves, hints and votes are always fresh.
+    const [{ allSolves, votes }, mySolves, myHints, mine] = await Promise.all([
+      cached("challenge-stats", async () => {
+        const [allSolves, votes] = await Promise.all([
+          prisma.solve.findMany({ select: { challengeId: true, userId: true, user: { select: { handle: true } } }, orderBy: { createdAt: "asc" } }),
+          prisma.vote.groupBy({ by: ["challengeId"], _avg: { rating: true }, _count: { _all: true } }),
+        ]);
+        return { allSolves, votes };
+      }),
+      uid ? prisma.solve.findMany({ where: { userId: uid }, select: { userId: true, challengeId: true, points: true, createdAt: true } }) : Promise.resolve([]),
       uid ? prisma.hintUnlock.findMany({ where: { userId: uid }, select: { userId: true, challengeId: true, hint: true, cost: true, createdAt: true } }) : Promise.resolve([]),
+      uid ? prisma.vote.findMany({ where: { userId: uid }, select: { challengeId: true, rating: true } }) : Promise.resolve([]),
     ]);
     for (const s of allSolves) {
       if (banned.has(s.userId)) continue;
@@ -57,14 +67,13 @@ export default async function ChallengesPage() {
       if (!st) continue;
       st.solves++;
       if (!st.first) st.first = s.user.handle;
-      if (s.userId === uid) solved.add(s.challengeId);
     }
+    for (const s of mySolves) solved.add(s.challengeId);
     for (const v of votes) if (stats[v.challengeId]) { stats[v.challengeId].votes = v._count._all; stats[v.challengeId].avg = v._avg.rating; }
     for (const h of myHints) unlocked.set(`${h.challengeId}:${h.hint}`, h.cost);
     if (uid) {
-      const mine = await prisma.vote.findMany({ where: { userId: uid }, select: { challengeId: true, rating: true } });
       mine.forEach((v) => myVote.set(v.challengeId, v.rating));
-      const sc = score(allSolves.filter((s) => s.userId === uid), myHints);
+      const sc = score(mySolves, myHints);
       my = { points: sc.points, hintCost: sc.hintCost };
     }
   } catch {

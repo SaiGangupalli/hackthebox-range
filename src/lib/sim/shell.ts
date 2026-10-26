@@ -29,6 +29,9 @@ export type ShellSpec = {
   // (so `kubectl logs <pod>` and `kubectl describe pod <pod>` can differ), then
   // each operand (resolved path, then literal), then "*".
   programs?: Record<string, Record<string, string>>;
+  // Lab tools written as code (git, kubectl, docker, cvss — see src/lib/sim/):
+  // they get their arguments and the shell, so they can read and change files.
+  tools?: Record<string, Tool>;
   procs?: { user: string; pid: number; cmd: string; start?: string; cpu?: string }[]; // shown by ps aux
   ports?: { port: number; addr?: string; proc: string; pid: number }[]; // listening TCP ports, shown by ss -tln
   date?: string; // `date` output
@@ -37,6 +40,9 @@ export type ShellSpec = {
 };
 
 export type RunResult = { out: string; clear?: boolean };
+
+export type ToolResult = { out: string; err?: string; code?: number };
+export type Tool = { about: string; run: (args: string[], sh: Shell, stdin: string) => ToolResult };
 
 type Res = { out: string; err: string; code: number };
 type Cmd = { argv: string[]; quiet: boolean; merge: boolean; redirect?: { path: string; append: boolean }; input?: string };
@@ -47,7 +53,7 @@ type Builtin = (sh: Shell, args: string[], stdin: string, tty: boolean) => Res;
 // Beginner-facing descriptions for `help` / `help <cmd>`.
 export const HELP: Record<string, [string, string]> = {
   ls: ["list files in a folder (-l details, -a show hidden files)", "ls -la"],
-  cd: ["change folder (cd .. goes up one level)", "cd /var/log"],
+  cd: ["change folder (cd .. goes up one level; cd or cd ~ goes home)", "cd /var/log"],
   pwd: ["print the folder you are in", "pwd"],
   mkdir: ["make a new folder (-p also makes any missing parent folders)", "mkdir evidence"],
   touch: ["create an empty file (or update an existing file's time)", "touch case-notes.txt"],
@@ -58,26 +64,26 @@ export const HELP: Record<string, [string, string]> = {
   cat: ["print a file's contents", "cat notes.txt"],
   head: ["show the first lines of a file (-n N)", "head -n 5 access.log"],
   tail: ["show the last lines of a file (-n N)", "tail -n 5 access.log"],
-  grep: ["show lines matching a pattern (-i ignore case, -v invert, -c count, -r search folders, -A/-B N lines after/before)", 'grep -i "failed" auth.log'],
+  grep: ["show lines matching a pattern (-i ignore case, -v invert, -c count, -n line numbers, -r search folders, -l file names only, -A/-B N lines after/before)", 'grep -i "failed" auth.log'],
   wc: ["count lines / words / bytes (-l = lines only)", "wc -l auth.log"],
-  sort: ["sort lines (-n numbers, -r reverse)", "sort -nr counts.txt"],
+  sort: ["sort lines (-n numbers, -r reverse, -u drop duplicates)", "sort -nr counts.txt"],
   uniq: ["merge repeated neighbouring lines (-c counts them) — sort first!", "sort ips.txt | uniq -c"],
-  cut: ["pick columns (-d delimiter, -f field numbers)", "cut -d: -f1 /etc/passwd"],
-  awk: ["print columns, e.g. '{print $1}' = first word of each line", "awk '{print $1}' access.log"],
+  cut: ["pick columns (-d delimiter, -f field numbers: -f1, or -f4,5 for several)", "cut -d: -f1 /etc/passwd"],
+  awk: ["print columns, e.g. '{print $1}' = first word of each line (-F, splits at commas instead of spaces)", "awk '{print $1}' access.log"],
   tr: ["swap or delete characters — reads from a pipe or < file (-d deletes)", "tr a-z A-Z < notes.txt"],
   sed: ["edit text as it flows past: s/old/new/ replaces, -n '3,5p' prints lines 3–5", "sed 's/ERROR/ALERT/' app.log"],
   rev: ["reverse each line, character by character", "rev backwards.txt"],
   tee: ["show output on screen AND save it to a file (-a adds to the end)", "grep Failed auth.log | tee failed.txt"],
   diff: ["show the lines that differ between two files (< first file, > second)", "diff old.conf new.conf"],
   sha256sum: ["print a file's SHA-256 fingerprint (-c checks a list of them)", "sha256sum tool.sh"],
-  find: ["search for files (-name, -type f|d, -perm -4000, -user, -writable)", "find / -perm -4000 2>/dev/null"],
+  find: ["search for files (-name, -iname ignores case, -type f|d, -perm -4000, -user, -writable)", "find / -perm -4000 2>/dev/null"],
   file: ["identify a file's real type from its first bytes", "file photo.jpg"],
   strings: ["print readable text buried inside a binary file", "strings image.png"],
   xxd: ["hex dump: see the raw bytes (-l N limits output)", "xxd -l 32 image.png"],
   binwalk: ["scan a file for other files hidden inside (-e extracts them)", "binwalk image.png"],
   unzip: ["extract a zip archive (-l only lists it)", "unzip -l archive.zip"],
   base64: ["encode text as Base64, or decode with -d", "echo aGVsbG8= | base64 -d"],
-  echo: ["print text", "echo hello"],
+  echo: ["print text (-n leaves off the new line at the end)", "echo hello"],
   ps: ["list running programs (aux = every user's, with details)", "ps aux"],
   ss: ["list network ports (-tln = listening TCP ports as numbers, -p adds the program)", "ss -tlnp"],
   id: ["show your user, group and extra groups", "id"],
@@ -568,6 +574,12 @@ export class Shell {
   exec(argv: string[], stdin: string, tty = true): Res {
     const [cmd, ...args] = argv;
     if (!cmd) return ok("");
+    const tool = this.spec.tools?.[cmd];
+    if (tool) {
+      const r = tool.run(args, this, stdin);
+      const err = r.err ? (r.err.endsWith("\n") ? r.err : r.err + "\n") : "";
+      return { out: r.out, err, code: r.code ?? (err ? 1 : 0) };
+    }
     const table = this.spec.programs?.[cmd];
     if (table) {
       const operands = args.filter((a) => !/^[-+]/.test(a));
@@ -673,7 +685,7 @@ export class Shell {
     const words = partial.split(/\s+/);
     const last = words[words.length - 1];
     if (words.length === 1) {
-      const cmds = new Set([...Object.keys(BUILTINS), ...Object.keys(this.spec.programs ?? {}), "help"]);
+      const cmds = new Set([...Object.keys(BUILTINS), ...Object.keys(this.spec.programs ?? {}), ...Object.keys(this.spec.tools ?? {}), "help"]);
       return [...cmds].filter((c) => c.startsWith(last)).sort();
     }
     const slash = last.lastIndexOf("/");
@@ -723,13 +735,21 @@ const BUILTINS: Record<string, Builtin> = {
     if (name) {
       const h = HELP[name];
       if (h) return ok(`${name} — ${h[0]}\n  example: ${h[1]}\n`);
+      const tool = sh.spec.tools?.[name];
+      if (tool) return ok(`${name} — ${tool.about}\n  type ${name} help to see what it can do here\n`);
       if (sh.spec.programs?.[name]) return ok(`${name} — a lab tool with simulated output. Try one of the suggested commands.\n`);
       return fail(`help: no help for '${name}'`);
     }
     const width = Math.max(...Object.keys(HELP).map((k) => k.length));
     const out = ["Commands in this lab (help <command> for an example):", ""];
     for (const [k, [d]] of Object.entries(HELP)) out.push(`  ${k.padEnd(width)}  ${d}`);
-    const progs = Object.keys(sh.spec.programs ?? {}).filter((p) => !HELP[p]);
+    const tools = Object.entries(sh.spec.tools ?? {});
+    if (tools.length) {
+      out.push("", "Lab tools (type <tool> help for what each can do):", "");
+      const w = Math.max(width, ...tools.map(([k]) => k.length));
+      for (const [k, t] of tools) out.push(`  ${k.padEnd(w)}  ${t.about}`);
+    }
+    const progs = Object.keys(sh.spec.programs ?? {}).filter((p) => !HELP[p] && !sh.spec.tools?.[p]);
     if (progs.length) out.push("", `Lab tools with simulated output: ${progs.join(", ")}`);
     out.push("", "Tips: ↑/↓ recall commands · Tab completes names · | sends output to the next command · 2>/dev/null hides errors");
     return ok(text(out));
@@ -1366,7 +1386,7 @@ const BUILTINS: Record<string, Builtin> = {
   which(sh, args) {
     const out: string[] = [];
     let code = 0;
-    for (const a of args) { if (BUILTINS[a] || sh.spec.programs?.[a]) out.push(`/usr/bin/${a}`); else code = 1; }
+    for (const a of args) { if (BUILTINS[a] || sh.spec.programs?.[a] || sh.spec.tools?.[a]) out.push(`/usr/bin/${a}`); else code = 1; }
     return { out: text(out), err: "", code };
   },
 };

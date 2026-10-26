@@ -11,6 +11,7 @@ const OPS: [string, string][] = [
   ["b64d", "Base64 → text"],
   ["hexd", "Hex → text"],
   ["rot13", "ROT13"],
+  ["atbash", "Atbash"],
   ["bind", "Binary → text"],
   ["urld", "URL-decode"],
   ["rev", "Reverse"],

@@ -8,6 +8,7 @@ import { badgesFor } from "./badges";
 import { tracks } from "@/data/tracks";
 import { rangeCertById } from "@/data/certify";
 import { siteOrDefault } from "./settings";
+import { cached } from "./cache";
 
 // Server-side player statistics: learning progress, CTF score, XP and rank.
 // Learning progress is reported by the browser, so every value is clamped to
@@ -73,9 +74,16 @@ export function xpAndRank(learn: LearnSummary, grossPoints: number): RankInfo {
   return rankFor(xp, MAX_XP);
 }
 
+const cutoffKey = (cutoff?: Date | null) => cutoff?.toISOString() ?? "live";
+
 // Who solved each challenge first (respecting a freeze cutoff).
-// Banned players never hold first blood.
-export async function firstSolvers(cutoff?: Date | null): Promise<Map<string, string>> {
+// Banned players never hold first blood. Shared for a few seconds (src/lib/cache.ts);
+// `fresh` skips that, for exports.
+export function firstSolvers(cutoff?: Date | null, fresh = false): Promise<Map<string, string>> {
+  return fresh ? loadFirstSolvers(cutoff) : cached(`first:${cutoffKey(cutoff)}`, () => loadFirstSolvers(cutoff));
+}
+
+async function loadFirstSolvers(cutoff?: Date | null): Promise<Map<string, string>> {
   const { banned } = await siteOrDefault();
   const rows = await prisma.solve.findMany({
     where: { ...(cutoff ? { createdAt: { lte: cutoff } } : {}), userId: { notIn: banned } },
@@ -87,27 +95,27 @@ export async function firstSolvers(cutoff?: Date | null): Promise<Map<string, st
   return first;
 }
 
+const SOLVE = { userId: true, challengeId: true, points: true, createdAt: true } as const;
+const HINT = { userId: true, challengeId: true, cost: true, createdAt: true } as const;
+const LEARN_KINDS = { in: ["lab", "quiz", "track"] }; // the progress rows summarize() reads
+
 // Everything the profile page needs for one player. `cutoff` hides solves and
 // hints after a scoreboard freeze (used when someone else views the profile).
+// The player's rows are read side by side, by handle, rather than one
+// relation after another: one database round trip instead of several.
 export async function getProfile(handle: string, cutoff: Date | null = null) {
-  const user = await prisma.user.findUnique({
-    where: { handle },
-    select: {
-      id: true, handle: true, createdAt: true,
-      solves: { select: { userId: true, challengeId: true, points: true, createdAt: true }, orderBy: { createdAt: "desc" } },
-      hints: { select: { userId: true, challengeId: true, cost: true, createdAt: true } },
-      progress: { select: { kind: true, key: true, data: true } },
-      membership: { select: { team: { select: { name: true } } } },
-    },
-  });
-  if (!user) return null;
-  if (cutoff) {
-    user.solves = user.solves.filter((x) => x.createdAt <= cutoff);
-    user.hints = user.hints.filter((x) => x.createdAt <= cutoff);
-  }
+  const mine = { user: { handle } };
+  const [found, solves, hints, progress, first] = await Promise.all([
+    prisma.user.findUnique({ where: { handle }, select: { id: true, handle: true, createdAt: true, membership: { select: { team: { select: { name: true } } } } } }),
+    prisma.solve.findMany({ where: { ...mine, ...(cutoff ? { createdAt: { lte: cutoff } } : {}) }, select: SOLVE, orderBy: { createdAt: "desc" } }),
+    prisma.hintUnlock.findMany({ where: { ...mine, ...(cutoff ? { createdAt: { lte: cutoff } } : {}) }, select: HINT }),
+    prisma.progress.findMany({ where: mine, select: { kind: true, key: true, data: true } }),
+    firstSolvers(cutoff),
+  ]);
+  if (!found) return null;
+  const user = { ...found, solves, hints, progress };
   const learn = summarize(user.progress);
   const sc = score(user.solves, user.hints);
-  const first = await firstSolvers(cutoff);
   const solvedIds = user.solves.filter((s) => challengeById[s.challengeId]).map((s) => s.challengeId);
   const firstBloods = solvedIds.filter((id) => first.get(id) === user.handle);
   return {
@@ -133,14 +141,34 @@ export async function getProfile(handle: string, cutoff: Date | null = null) {
   };
 }
 
+// The header's rank chip: score and XP only (no badges, first bloods or
+// certificates), in one round trip. Fetched on every page change.
+export async function getRankSummary(handle: string) {
+  const mine = { user: { handle } };
+  const [user, solves, hints, progress] = await Promise.all([
+    prisma.user.findUnique({ where: { handle }, select: { handle: true } }),
+    prisma.solve.findMany({ where: mine, select: SOLVE }),
+    prisma.hintUnlock.findMany({ where: mine, select: HINT }),
+    prisma.progress.findMany({ where: { ...mine, kind: LEARN_KINDS }, select: { kind: true, key: true, data: true } }),
+  ]);
+  if (!user) return null;
+  const sc = score(solves, hints);
+  return { handle: user.handle, score: sc, rank: xpAndRank(summarize(progress), sc.gross) };
+}
+
 export type FeedItem =
   | { type: "solve"; handle: string; title: string; points: number; firstBlood: boolean; at: string }
   | { type: "track"; handle: string; title: string; at: string }
   | { type: "team"; handle: string; team: string; at: string };
 
 // Recent community activity: solves (with first bloods), finished tracks and
-// team joins. Solves after a freeze stay hidden until the event ends.
-export async function getFeed(cutoff: Date | null, limit = 20): Promise<FeedItem[]> {
+// team joins. Solves after a freeze stay hidden until the event ends. The same
+// for everyone, so it's shared for a few seconds (src/lib/cache.ts).
+export function getFeed(cutoff: Date | null, limit = 20): Promise<FeedItem[]> {
+  return cached(`feed:${limit}:${cutoffKey(cutoff)}`, () => loadFeed(cutoff, limit));
+}
+
+async function loadFeed(cutoff: Date | null, limit: number): Promise<FeedItem[]> {
   const { banned } = await siteOrDefault();
   const notBanned = { userId: { notIn: banned } };
   const [solves, done, joins, first] = await Promise.all([
@@ -176,18 +204,31 @@ export type TeamRow = { name: string; members: string[]; points: number; solved:
 // Scoreboard data. `cutoff` (the freeze moment) ignores solves and hints
 // recorded later — including for ranks, so a rank change can't leak a late
 // solve. Teams count each challenge once, at its first solve by any member.
-export async function getBoard(cutoff: Date | null) {
+// Everyone sees the same board, so it's shared for a few seconds
+// (src/lib/cache.ts); `fresh` skips that, for exports.
+export type Board = Awaited<ReturnType<typeof loadBoard>>;
+export function getBoard(cutoff: Date | null, fresh = false): Promise<Board> {
+  return fresh ? loadBoard(cutoff) : cached(`board:${cutoffKey(cutoff)}`, () => loadBoard(cutoff));
+}
+
+async function loadBoard(cutoff: Date | null) {
   const { banned } = await siteOrDefault();
-  const users = await prisma.user.findMany({
-    where: { id: { notIn: banned } }, // banned players drop off the board (and out of team totals)
-    select: {
-      handle: true,
-      solves: { select: { userId: true, challengeId: true, points: true, createdAt: true } },
-      hints: { select: { userId: true, challengeId: true, cost: true, createdAt: true } },
-      progress: { select: { kind: true, key: true, data: true } },
-      membership: { select: { team: { select: { id: true, name: true } } } },
-    },
-  });
+  // Banned players drop off the board (and out of team totals). Each table is
+  // read once, side by side, then grouped per player here.
+  const notBanned = { userId: { notIn: banned } };
+  const [rows, solves, hints, progress] = await Promise.all([
+    prisma.user.findMany({ where: { id: { notIn: banned } }, select: { id: true, handle: true, membership: { select: { team: { select: { id: true, name: true } } } } } }),
+    prisma.solve.findMany({ where: notBanned, select: SOLVE }),
+    prisma.hintUnlock.findMany({ where: notBanned, select: HINT }),
+    prisma.progress.findMany({ where: { ...notBanned, kind: LEARN_KINDS }, select: { userId: true, kind: true, key: true, data: true } }),
+  ]);
+  const byUser = <T extends { userId: string }>(list: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const r of list) { const a = m.get(r.userId); if (a) a.push(r); else m.set(r.userId, [r]); }
+    return m;
+  };
+  const [solvesOf, hintsOf, progressOf] = [byUser(solves), byUser(hints), byUser(progress)];
+  const users = rows.map((u) => ({ ...u, solves: solvesOf.get(u.id) ?? [], hints: hintsOf.get(u.id) ?? [], progress: progressOf.get(u.id) ?? [] }));
 
   const byPoints = <T extends { points: number; last: Date | null }>(a: T, b: T) =>
     b.points - a.points || (a.last?.getTime() ?? Infinity) - (b.last?.getTime() ?? Infinity);

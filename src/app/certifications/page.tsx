@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/auth";
-import { rangeCerts, rangeCertById } from "@/data/certify";
+import { rangeCerts, rangeCertById, studyId } from "@/data/certify";
 import { industryCerts, industryCertById, roadmaps, CERTS_REVIEWED, type RoadStep } from "@/data/industryCerts";
 import { tracks } from "@/data/tracks";
 import { certStatus, guestRequirements, RETRY_MINUTES, type CertStatus } from "@/lib/certify/exam";
@@ -74,7 +74,7 @@ export default async function CertificationsPage() {
                   <span><Icon name="circle" />{c.exam.minutes} min</span>
                   <span><Icon name="trophy" />pass {c.exam.pass}%</span>
                 </div>
-                <details className="rc-covers"><summary>What the exam covers</summary><div className="chips">{c.covers.map((x) => <span className="chip" key={x}>{x}</span>)}</div></details>
+                <details className="rc-covers"><summary>What the exam covers</summary><div className="chips">{c.covers.map((x) => <Link className="chip" key={x} href={`/certify/${c.id}#${studyId(x)}`}>{x}</Link>)}</div></details>
                 <ul className="rc-reqs">
                   {reqs.map((r) => (
                     <li key={r.label} className={st && r.met ? "met" : ""}>
@@ -93,6 +93,7 @@ export default async function CertificationsPage() {
                   ) : (
                     <Link className="btn" href={`/certify/${c.id}`}>{st ? "See what's left" : "Requirements & exam"}</Link>
                   )}
+                  {!st?.earned && <Link className="btn" href={`/certify/${c.id}#study`}><Icon name="book" />Study guide</Link>}
                   {st?.best != null && !st.earned && <span className="rc-best">best so far {st.best}%</span>}
                 </div>
               </article>

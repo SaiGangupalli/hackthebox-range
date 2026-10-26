@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "./icons";
-import { glossary, GLOSSARY_CATS } from "@/data/glossary";
+import { glossary, GLOSSARY_CATS, termId } from "@/data/glossary";
 import { tracks } from "@/data/tracks";
 
 // Searchable glossary: type to filter by term or definition, or narrow to one
@@ -58,7 +58,7 @@ export function GlossaryView() {
           <div className="sec-h"><Icon name="book" />{g.cat}</div>
           <dl className="gl-list">
             {g.terms.map((t) => (
-              <div className="gl-term" key={t.term}>
+              <div className="gl-term" key={t.term} id={termId(t.term)}>
                 <dt>{t.term}</dt>
                 <dd>
                   {t.def}

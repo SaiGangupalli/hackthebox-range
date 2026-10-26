@@ -26,6 +26,7 @@ export const cryptoLabs: Record<string, CryptoLab> = {
       { label: "sample B (ROT13)", value: "UUO{ebg_naq_ebyy}" },
       { label: "sample C (two layers)", value: "NDggNDggNDIgN2IgNzQgNzcgNmYgNWYgNmMgNjEgNzkgNjUgNzIgNzMgN2Q=" },
       { label: "sample D (binary)", value: "01001000 01001000 01000010 01111011 01100010 01101001 01110100 01110011 01111101" },
+      { label: "sample E (Atbash)", value: "SSY{zgyzhs_nriili}" },
     ],
     tasks: [
       {
@@ -55,6 +56,13 @@ export const cryptoLabs: Record<string, CryptoLab> = {
         hint: "Eight bits per group = one byte each. Choose “Binary → text”.",
         solution: "HHB{bits} — each 8-bit group is one ASCII character.",
         check: has("HHB{bits}"),
+      },
+      {
+        ask: "Sample E is a cipher, not an encoding — but it needs no key. Notice even the flag's `HHB{` became `SSY{`: every letter is mirrored (A↔Z). Decode it.",
+        placeholder: "HHB{…}",
+        hint: "This is Atbash — the alphabet reversed, and its own inverse. Choose “Atbash” and Apply once. (It's the cipher behind the “Find the hidden text” CTF challenge: text where SUBSTITUTION reads as HFYHGRGFGRLM.)",
+        solution: "HHB{atbash_mirror} — Atbash maps each letter to its mirror, so applying it again decodes it. Unlike Base64/hex, it changes letters only, which is why the braces stayed but the letters moved.",
+        check: has("HHB{atbash_mirror}"),
       },
     ],
   },

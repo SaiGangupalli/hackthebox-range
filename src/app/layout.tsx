@@ -17,7 +17,9 @@ const themeScript = `try{var t=localStorage.getItem('hhb_theme');if(t)document.d
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // themeScript adds data-theme to <html> before React loads, which the server
+    // can't know; suppressHydrationWarning covers <html>'s own attributes only.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

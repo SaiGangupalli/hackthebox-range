@@ -20,7 +20,7 @@ type Kind = (typeof KINDS)[number];
 // like the public board; the solve log keeps them, marked.
 async function build(kind: Kind): Promise<{ header: string[]; rows: unknown[][] }> {
   if (kind === "players" || kind === "teams") {
-    const board = await getBoard(null);
+    const board = await getBoard(null, true);
     if (kind === "players") {
       return {
         header: ["rank", "handle", "team", "points", "solved", "hint_penalty", "reached_score_at"],
@@ -39,7 +39,7 @@ async function build(kind: Kind): Promise<{ header: string[]; rows: unknown[][] 
         select: { challengeId: true, points: true, createdAt: true, userId: true, user: { select: { handle: true, membership: { select: { team: { select: { name: true } } } } } } },
         orderBy: { createdAt: "asc" },
       }),
-      firstSolvers(null),
+      firstSolvers(null, true),
       siteOrDefault(),
     ]);
     return {

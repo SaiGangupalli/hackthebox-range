@@ -71,6 +71,19 @@ export function pageContext(page: string | undefined): { key: string; text: stri
   return { key: "site", text: siteContext(), track: null };
 }
 
+// A short summary of a track, for prompts that cover many tracks at once.
+export function trackBrief(slug: string): string {
+  const t = tracks[slug];
+  const p = pathIndex[slug];
+  const l = learn[slug];
+  return [
+    `${t.title} (${t.tag}; ${p?.level ?? "Beginner"}): ${t.blurb}`,
+    p ? `Outcomes: ${p.outcomes.join("; ")}.` : "",
+    l ? `Concepts: ${l.cards.map((c) => c.q).join(" ")}` : "",
+    `Tools: ${t.tools.join(", ")}. Defenses: ${t.defend.join("; ")}.`,
+  ].filter(Boolean).join("\n");
+}
+
 export function trackSlugContext(slug: string): string {
   return tracks[slug] ? trackContext(slug) : siteContext();
 }

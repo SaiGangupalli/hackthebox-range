@@ -633,6 +633,30 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .gl-count{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
 .gl-list{margin:0;display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .gl-term{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.gl-term,details.ow{scroll-margin-top:80px}
+.learn-card{scroll-margin-top:130px}
+.study{margin-top:28px}
+.study h2{display:flex;align-items:center;gap:8px;font-size:20px;letter-spacing:-.3px;margin-bottom:6px}
+.study h2 svg{width:18px;height:18px;color:var(--accent)}
+.study-intro{color:var(--muted);font-size:14px;margin-bottom:14px;max-width:760px}
+.study-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;counter-reset:study}
+.study-list>li{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 14px;scroll-margin-top:80px;counter-increment:study}
+.study-list>li:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak)}
+.study-list h3{font-size:14.5px;margin-bottom:8px;display:flex;gap:8px;align-items:baseline}
+.study-list h3::before{content:counter(study);font-family:var(--mono);font-size:11px;color:var(--faint)}
+.study-links{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.study-links a{display:flex;gap:9px;align-items:baseline;font-size:13px;color:var(--fg);text-decoration:none;padding:4px 6px;margin:0 -6px;border-radius:7px}
+.study-links a:hover,.study-links a:focus-visible{background:var(--surface-2)}
+.study-links a:hover .study-label{text-decoration:underline}
+.study-kind{flex-shrink:0;width:62px;font-family:var(--mono);font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--faint)}
+.study-kind.k-lesson{color:var(--info)}
+.study-kind.k-lab{color:var(--ok)}
+.study-kind.k-owasp{color:var(--warn)}
+.study-label small{display:block;font-size:11.5px;color:var(--faint)}
+.study-label code{font-family:var(--mono);font-size:12px}
+.er-topics a{color:inherit;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px}
+@media (max-width:760px){.study-list{grid-template-columns:1fr}}
+.learn-card:target,.gl-term:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak)}
 .gl-term dt{font-weight:600;font-size:15px;color:var(--fg);margin-bottom:5px}
 .gl-term dd{margin:0;font-size:13.5px;color:var(--muted);line-height:1.55}
 .gl-eg{display:block;margin-top:9px;font-size:12.5px;color:var(--fg);background:var(--surface-2);border-radius:8px;padding:7px 10px;line-height:1.45}
@@ -858,6 +882,22 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .ai-gen svg{width:15px;height:15px}
 .ai-gen>span{display:inline-flex;align-items:center;gap:6px}
 .ai-err{color:var(--warn);font-size:12.5px}
+.qh-card.ai{background:linear-gradient(135deg,var(--info-weak),var(--surface) 70%)}
+.qh-card.ai .qh-top{color:var(--info)}
+.aiq{scroll-margin-top:70px}
+.aiq-builder{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.aiq-builder .cc-label{width:64px;flex-shrink:0}
+.aiq-builder .chip-btn:disabled{opacity:.5;cursor:not-allowed}
+.aiq-focus{flex:1;min-width:200px;width:auto}
+.aiq-go{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-top:1px solid var(--border-soft);padding-top:12px}
+.aiq-sum{font-size:13px;color:var(--muted)}
+.aiq-busy{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.aiq-spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--info);animation:aiq-spin .8s linear infinite}
+@keyframes aiq-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.aiq-spin{animation:none;border-top-color:var(--border)}}
+.qz-snippet{margin:-2px 0 11px 32px;font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:9px 11px;overflow-x:auto;white-space:pre;color:var(--fg)}
+.quiz-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+@media (max-width:640px){.qz-snippet{margin-left:0}.aiq-builder .cc-label{width:100%}}
 
 /* Command handbook */
 .cmddoc{max-width:820px}
@@ -887,6 +927,15 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .cmd-ex code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:6px 9px;color:var(--ok);word-break:break-word}
 .cmd-tip{font-size:12.5px;color:var(--muted);line-height:1.5}
 .cmd-tip b{font-family:var(--mono);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--warn);margin-right:6px}
+.cmd-uses{display:flex;flex-direction:column;gap:4px}
+.cmd-uses span{font-family:var(--mono);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--faint)}
+.cmd-uses ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:5px}
+.cmd-uses a{display:block;text-decoration:none;max-width:100%}
+.cmd-uses code{display:block;font-family:var(--mono);font-size:11.5px;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:3px 7px;color:var(--fg);overflow-wrap:anywhere}
+.cmd-uses a:hover code,.cmd-uses a:focus-visible code{border-color:var(--accent-line);color:var(--accent)}
+.cmd-lab{font-size:12.5px;color:var(--muted)}
+.cmd-try{font-family:var(--mono);font-size:11px;white-space:nowrap;margin-left:4px}
+.sheet-code code{overflow-wrap:anywhere}
 .cmddoc .sheet-table{margin-top:4px}
 .cmddoc .sheet-code .explain-btn{margin-left:6px}
 
@@ -1164,6 +1213,8 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
   .cmd-name{font-size:12pt}
   .cmd-does,.cmd-tip{font-size:9.5pt}
   .cmd-ex code{font-size:9pt;padding:3pt 6pt}
+  .cmd-uses code{font-size:8pt;padding:1pt 4pt}
+  .cmd-lab{font-size:9pt}
   .anat-example{font-size:14pt}
 }
 

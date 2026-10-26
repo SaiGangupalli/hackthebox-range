@@ -26,7 +26,7 @@ export function ActivityFeed({ limit = 12 }: { limit?: number }) {
         .then((d) => { if (!cancelled) { setItems(d.items ?? []); setNow(Date.now()); } })
         .catch(() => { if (!cancelled) setItems([]); });
     load();
-    const t = setInterval(load, 30000);
+    const t = setInterval(() => { if (!document.hidden) load(); }, 30000); // background tabs don't poll
     return () => { cancelled = true; clearInterval(t); };
   }, []);
 

@@ -101,14 +101,26 @@ Without a reachable DB the scoreboard/registration degrade gracefully (friendly
 
 Signed-in players get an **AI tutor** (floating "Ask the tutor" button on every page) that knows the
 page they're on, plus **Explain** on every command, **Ask for a nudge** on lab objectives, **Explain
-more** after quiz answers, and **fresh AI practice questions** on `/quiz`. All calls run server-side
+more** after quiz answers, and **AI quizzes**. All calls run server-side
 (`src/lib/ai/`) on `claude-opus-5-5` with server-side refusal fallbacks; Grok (`X_GROK_API_KEY`) is a
 backup used only when a Claude request fails. Prompts are built on the server from site content — the
 tutor never sees lab solutions, flags or writeups — and each player has hourly limits
 (`AI_TUTOR_PER_HOUR`, `AI_QUESTIONS_PER_HOUR`). See `.env.example`.
 
-The **command handbook** (`/commands`) lists the most-used commands in plain English, with an example
-and tip for each, and prints to PDF. The **command dojo** (`/commands/practice`) has 66 graded drills
+**AI quizzes** (`/quiz` → *AI quiz*, and under every track's quiz) are written fresh each round for
+the tracks, level, length (5 or 10) and optional focus the player picks, or for their weakest quizzes.
+Questions mix concepts, scenarios and snippets to read (logs, command output, config). After a round,
+players can re-test what they missed, step the level up or down, or get another round with no repeats.
+Every question is signed by the server (`src/lib/ai/signed.ts`, keyed by `AUTH_SECRET`), so only
+questions the server wrote can be sent back for the tutor to explain or for the next round to build on.
+AI rounds are practice only and don't change best scores or XP.
+
+The **command handbook** (`/commands`) explains every command in the Range in plain English — the
+terminal's commands and the track labs' tools — with an example and tip for each, and prints to PDF.
+Each card also lists every other way the drills and labs use that command (built from
+`src/data/drills.ts` and the labs' suggested commands, linking to the drill), and every drill pipeline
+is in *Put them together*; `tests/handbook.test.ts` fails if a drill or lab uses something the
+handbook doesn't show. The **command dojo** (`/commands/practice`) has 66 graded drills
 in 12 levels, from `pwd` to a full incident triage, played in the simulated terminal (`src/lib/sim/shell.ts`).
 Drills live in `src/data/drills.ts`; add new ones at the **end** of the list (progress is saved per
 position) and give them a `level` — the page shows them grouped by level.
@@ -151,7 +163,9 @@ position) and give them a `level` — the page shows them grouped by level.
   sent itself are ignored.
 - **Event day** — [`docs/EVENT-RUNBOOK.md`](docs/EVENT-RUNBOOK.md): deployment checklist, what to do
   when something goes wrong mid-event, and recovery. `npm run loadtest` simulates a room of players
-  behind one IP; `npm run db:backup` snapshots this app's tables to `backups/` (git-ignored).
+  behind one IP; `npm run db:backup` snapshots this app's tables to `backups/` (git-ignored). The
+  scoreboard, activity feed and challenge stats are shared in memory for 5 seconds (`src/lib/cache.ts`),
+  so a room of players refreshing at once costs one database read.
 - **Headers** — `next.config.ts` sends a Content-Security-Policy (same-origin plus Google Fonts;
   inline scripts allowed because Next.js bootstraps with them), `X-Frame-Options: DENY`, `nosniff`,
   a strict referrer policy, a locked-down Permissions-Policy and, in production, HSTS.

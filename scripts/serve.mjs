@@ -8,6 +8,7 @@
 // server is already running, say where instead of starting a second copy —
 // two servers in one folder fight over .next/.
 import net from "node:net";
+import os from "node:os";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { realpathSync } from "node:fs";
@@ -91,6 +92,9 @@ if (port !== first) console.log(`Port ${first} is busy — using ${port} instead
 
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 const args = mode === "dev" ? ["dev", "--turbopack", "-p", String(port), ...extra] : ["start", "-p", String(port), ...extra];
-const child = spawn(process.execPath, [nextBin, ...args], { stdio: "inherit", cwd: root });
+// Password hashing (scrypt) runs on libuv's thread pool, 4 threads by default;
+// size it to the machine so a burst of sign-ins at the event start uses every core.
+const threads = process.env.UV_THREADPOOL_SIZE ?? String(Math.min(16, Math.max(4, os.availableParallelism())));
+const child = spawn(process.execPath, [nextBin, ...args], { stdio: "inherit", cwd: root, env: { ...process.env, UV_THREADPOOL_SIZE: threads } });
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => child.kill(sig));
 child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));

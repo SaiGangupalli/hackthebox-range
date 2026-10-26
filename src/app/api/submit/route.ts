@@ -36,9 +36,12 @@ export async function POST(req: Request) {
   if (hash !== ch.flagHash) return NextResponse.json({ correct: false });
 
   try {
-    const existing = await prisma.solve.findUnique({ where: { userId_challengeId: { userId: uid, challengeId: ch.id } } });
+    const [existing, solvesSoFar] = await Promise.all([
+      prisma.solve.findUnique({ where: { userId_challengeId: { userId: uid, challengeId: ch.id } } }),
+      prisma.solve.count({ where: { challengeId: ch.id } }),
+    ]);
     if (existing) return NextResponse.json({ correct: true, already: true, points: ch.points });
-    const first = (await prisma.solve.count({ where: { challengeId: ch.id } })) === 0;
+    const first = solvesSoFar === 0;
     await prisma.solve.create({ data: { userId: uid, challengeId: ch.id, points: ch.points } });
     return NextResponse.json({ correct: true, points: ch.points, firstBlood: first });
   } catch {

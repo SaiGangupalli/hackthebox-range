@@ -6,6 +6,9 @@
 
 export type Term = { term: string; cat: string; def: string; eg?: string; track?: string };
 
+/** Stable anchor for a term on /glossary (/glossary#term-sigma-rule). */
+export const termId = (term: string) => "term-" + term.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
 export const GLOSSARY_CATS = ["Basics", "Networking", "Systems", "Cryptography", "Web & apps", "Logs & forensics", "DevOps & cloud", "DevSecOps", "Security operations", "AI security"];
 
 export const glossary: Term[] = [
@@ -20,6 +23,10 @@ export const glossary: Term[] = [
   { term: "Red team / blue team", cat: "Basics", def: "Red team plays the attacker to find weaknesses; blue team defends, detects and responds. This range teaches both, aimed at defense." },
   { term: "Defense in depth", cat: "Basics", def: "Using several layers of protection so that if one fails, another still stops the attack.", eg: "Like a house with a fence, a lock and an alarm — not just one." },
   { term: "Least privilege", cat: "Basics", def: "Give every user, program or AI tool only the access it needs for its job — nothing more." },
+  { term: "Penetration test", cat: "Basics", def: "An authorized, scoped, time-boxed attack on a system to find real weaknesses before criminals do. It runs in phases — recon, enumeration, exploitation, post-exploitation, reporting — and the deliverable is a report with findings, CVSS severities and fixes.", eg: "A vuln scan lists possible issues; a pentest proves which are exploitable and how far they go." },
+  { term: "Rules of engagement", cat: "Basics", def: "The written agreement for a pentest: what's in scope, what's off-limits, when testing may run, who to call, and how findings are handled. Staying inside it is what keeps the test legal." },
+  { term: "Fuzzing", cat: "Basics", def: "Throwing large amounts of unexpected or malformed input at a program to find inputs that crash it or slip past checks.", eg: "Spraying thousands of URL paths at a web app to discover hidden pages (ffuf)." },
+  { term: "Purple team", cat: "Basics", def: "Red (attack) and blue (defend) working together: the attacker shows a technique, the defender confirms their tools catch it, and detection improves on the spot." },
 
   // Networking
   { term: "IP address", cat: "Networking", def: "A number that identifies a device on a network, like a postal address for a computer.", eg: "10.0.0.8 or 93.184.216.34" },
@@ -40,6 +47,7 @@ export const glossary: Term[] = [
   { term: "Root", cat: "Systems", def: "The all-powerful administrator account on Linux. Anything running as root can change anything on the machine.", track: "os" },
   { term: "File permissions", cat: "Systems", def: "Rules saying who may read, write or run a file: the owner, the owner's group, and everyone else.", eg: "-rw-r----- means the owner can read and write, the group can read, everyone else gets nothing.", track: "os" },
   { term: "SUID", cat: "Systems", def: "A permission bit that makes a program run with its owner's powers instead of yours. Unexpected SUID programs are a classic thing to audit.", track: "os" },
+  { term: "Privilege escalation", cat: "Systems", def: "Turning limited access into more — a normal user becoming root (local), or a low-privilege account gaining admin (vertical). Misused SUID files, writable services and weak sudo rules are common routes; least privilege and patching close them.", track: "os" },
   { term: "Cron job", cat: "Systems", def: "A task the system runs automatically on a schedule.", eg: "*/5 * * * * means every five minutes.", track: "os" },
   { term: "Pipe ( | )", cat: "Systems", def: "Sends one command's output straight into the next command, so small tools can be chained into one answer.", eg: "grep Failed auth.log | wc -l counts failed logins.", track: "os" },
 
@@ -51,6 +59,8 @@ export const glossary: Term[] = [
   { term: "Base64", cat: "Cryptography", def: "An encoding that turns any data into letters, digits, + and /, often ending in = signs. Common in CTFs, emails and web tokens.", eg: "SGk= decodes to Hi.", track: "crypto" },
   { term: "Symmetric vs asymmetric encryption", cat: "Cryptography", def: "Symmetric uses one shared key to lock and unlock. Asymmetric uses a key pair: a public key anyone can use to lock, and a private key only the owner has to unlock.", track: "crypto" },
   { term: "Digital signature", cat: "Cryptography", def: "Proof, made with a private key, that data came from a specific sender and wasn't changed on the way." },
+  { term: "Atbash cipher", cat: "Cryptography", def: "A cipher that mirrors the alphabet (A↔Z, B↔Y…). It has no key and is its own inverse, so applying it twice gives the original. A giveaway is that common words become fixed patterns.", eg: "SUBSTITUTION encrypts to HFYHGRGFGRLM; the flag HHB{ shows up as SSY{.", track: "crypto" },
+  { term: "Substitution cipher", cat: "Cryptography", def: "Each letter is consistently replaced by another. Caesar/ROT (shift) and Atbash (mirror) are simple cases; a general one is cracked with letter-frequency analysis, not brute force.", track: "crypto" },
 
   // Web & apps
   { term: "SQL injection", cat: "Web & apps", def: "When user input ends up as part of a database query, so typed text can change what the query does. Fixed with parameterised queries.", track: "webmobile" },
@@ -68,7 +78,9 @@ export const glossary: Term[] = [
   { term: "Timeline", cat: "Logs & forensics", def: "Events from different sources put in time order, so the story of an incident becomes clear.", track: "forensics" },
   { term: "Chain of custody", cat: "Logs & forensics", def: "A record of who collected and handled evidence, and when — so it can be trusted later.", track: "forensics" },
   { term: "Magic bytes", cat: "Logs & forensics", def: "The first few bytes of a file that identify its real type, whatever its name says.", eg: "PNG files start with 89 50 4E 47; Zip files with PK.", track: "stego" },
-  { term: "Metadata (EXIF)", cat: "Logs & forensics", def: "Hidden information stored inside a file: author, device, time, sometimes GPS location.", track: "osint" },
+  { term: "Metadata (EXIF)", cat: "Logs & forensics", def: "Hidden information stored inside a file: author, device, time, sometimes GPS location. In Office files it's in docProps/core.xml (an Office file is a zip); in photos it's EXIF. People forget to strip it.", track: "osint" },
+  { term: "Recycle Bin ($I / $R)", cat: "Logs & forensics", def: "Where Windows keeps deleted files. For each one a $I record holds the original name and time, and a $R file holds the actual data — deletion only unlinks the name, so the bytes survive until overwritten and can be recovered.", track: "forensics" },
+  { term: "strings (tool)", cat: "Logs & forensics", def: "Prints the readable text runs inside a binary. Flags, URLs, passwords and keys compiled into a program often sit in the clear — the first thing to try on an unknown executable (or with a PE editor like CFF Explorer).", track: "forensics" },
   { term: "Steganography", cat: "Logs & forensics", def: "Hiding a message inside another file — an image, audio, or text — so nobody suspects it's there.", track: "stego" },
   { term: "OSINT", cat: "Logs & forensics", def: "Open-source intelligence: building a picture from public information only, such as websites, DNS records and photo metadata.", track: "osint" },
 
@@ -77,6 +89,8 @@ export const glossary: Term[] = [
   { term: "Container", cat: "DevOps & cloud", def: "A packaged app with everything it needs to run, isolated from other apps on the same machine.", eg: "A Docker container running a web shop.", track: "devops" },
   { term: "Container image", cat: "DevOps & cloud", def: "The template a container starts from. A version tag like shop:1.4.2 says exactly which build it is; latest says nothing.", track: "devops" },
   { term: "Kubernetes / pod", cat: "DevOps & cloud", def: "Kubernetes runs containers across many machines and restarts them when they fail. A pod is its smallest unit — one or more containers running together.", track: "devops" },
+  { term: "RBAC (role-based access control)", cat: "DevOps & cloud", def: "Granting access by role instead of per person. In Kubernetes a Role (or ClusterRole) lists allowed verbs on resources; a RoleBinding is namespaced, a ClusterRoleBinding applies cluster-wide — so prefer the narrower one.", track: "devops" },
+  { term: "Workload identity (OIDC)", cat: "DevOps & cloud", def: "Letting a pipeline or workload prove who it is with a short-lived identity token, which the cloud swaps for temporary credentials — so there's no long-lived access key stored as a secret to leak.", track: "devops" },
   { term: "Infrastructure as code (IaC)", cat: "DevOps & cloud", def: "Describing servers, networks and storage in files (for example Terraform) instead of setting them up by hand, so changes can be reviewed like code.", track: "devops" },
   { term: "Shared responsibility model", cat: "DevOps & cloud", def: "In the cloud, the provider secures the platform; you secure what you build on it — your settings, accounts, data and code.", track: "devops" },
   { term: "Secret manager", cat: "DevOps & cloud", def: "A service that stores passwords, keys and tokens safely and hands them to apps at runtime, so secrets never sit in code or config files.", track: "devops" },
@@ -84,10 +98,16 @@ export const glossary: Term[] = [
   // DevSecOps
   { term: "Shift left", cat: "DevSecOps", def: "Moving security checks earlier — into the editor and the pipeline — where problems are cheaper and faster to fix.", track: "devsecops" },
   { term: "SAST", cat: "DevSecOps", def: "Static application security testing: scanning source code for risky patterns without running it.", track: "devsecops" },
-  { term: "DAST", cat: "DevSecOps", def: "Dynamic application security testing: probing a running app from the outside, the way a user's browser would.", track: "devsecops" },
-  { term: "SCA (dependency scanning)", cat: "DevSecOps", def: "Software composition analysis: checking the third-party libraries you use against lists of known vulnerabilities.", track: "devsecops" },
+  { term: "DAST", cat: "DevSecOps", def: "Dynamic application security testing: probing a running app from the outside, the way a user's browser would.", eg: "OWASP ZAP, Burp Suite.", track: "devsecops" },
+  { term: "IAST", cat: "DevSecOps", def: "Interactive application security testing: a sensor inside the running app watches real requests flow through the code, so it confirms which flaws are truly reachable — between SAST and DAST.", track: "devsecops" },
+  { term: "MAST", cat: "DevSecOps", def: "Mobile application security testing: SAST, DAST and config checks aimed at a mobile build — its manifest, stored data and network traffic.", eg: "MobSF; the mobile modes of Fortify and Checkmarx.", track: "webmobile" },
+  { term: "SCA (dependency scanning)", cat: "DevSecOps", def: "Software composition analysis: checking the third-party libraries you use against lists of known vulnerabilities, and telling you the version that fixes each.", eg: "Trivy, Grype, Snyk, Black Duck, Dependabot, OWASP Dependency-Check.", track: "devsecops" },
   { term: "SBOM", cat: "DevSecOps", def: "Software bill of materials: an ingredient list of every component and version in a release, so you can tell fast whether a new vulnerability affects you.", track: "devsecops" },
   { term: "CVE", cat: "DevSecOps", def: "Common Vulnerabilities and Exposures: a public ID for a known vulnerability, so everyone can refer to the same issue.", eg: "CVE-2021-44906", track: "devsecops" },
+  { term: "CVSS", cat: "DevSecOps", def: "Common Vulnerability Scoring System: a 0–10 score for how severe a flaw is, built from how it's reached and its impact. Bands: 0.1–3.9 Low, 4–6.9 Medium, 7–8.9 High, 9–10 Critical. Severity isn't the same as priority — weigh exposure and exploitability too.", eg: "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H = 9.8 Critical.", track: "devsecops" },
+  { term: "Fixed version", cat: "DevSecOps", def: "The release of a dependency that patches a known vulnerability. SCA tools print it next to each finding, so the fix is usually 'upgrade to this version or later'.", eg: "minimist 1.2.5 → fixed in 1.2.6.", track: "devsecops" },
+  { term: "Quality gate", cat: "DevSecOps", def: "A pass/fail rule a build must clear before it merges or ships — e.g. no new critical vulnerabilities, coverage above a threshold. SonarQube is a common one.", track: "devsecops" },
+  { term: "Dependency confusion", cat: "DevSecOps", def: "A supply-chain trick where an attacker publishes a public package with the same name as your private one, hoping the build pulls theirs. A typosquat is the look-alike-name version.", eg: "Internal 'acme-utils' vs a public 'acme-utils' an attacker uploads.", track: "devsecops" },
   { term: "Secret scanning", cat: "DevSecOps", def: "Searching code and its history for passwords, keys and tokens that were committed by mistake. A found secret must be revoked, not just deleted.", track: "devsecops" },
   { term: "Transitive dependency", cat: "DevSecOps", def: "A library you didn't add yourself, pulled in by a library you did add. Most vulnerable code arrives this way.", track: "devsecops" },
   { term: "Supply-chain attack", cat: "DevSecOps", def: "Compromising software by tampering with something it's built from — a library, a build tool, a container image — rather than attacking it directly.", track: "devsecops" },

@@ -8,6 +8,7 @@ import { Copyable } from "./Copyable";
 import { Learn } from "./Learn";
 import { PracticeLab } from "./labs/PracticeLab";
 import { Quiz } from "./Quiz";
+import { AiQuiz } from "./AiQuiz";
 import { useProgress, toggleDone } from "@/lib/progress";
 import { useLabProgress } from "@/lib/labProgress";
 import { useQuizProgress } from "@/lib/quizProgress";
@@ -101,6 +102,7 @@ export function TrackView({ slug }: { slug: string }) {
         slug={slug}
         heading={<StepHead n={3} id="check" title="Check your understanding" sub="Four quick questions. Pick an answer to see straight away whether it's right — and why." />}
       />
+      <AiQuiz preset={[slug]} compact />
 
       <StepHead n={4} id="reference" title="Quick reference" sub="The commands and tools from this track, for when you need them again. Click a command to copy it, or Explain to have the AI tutor break it down." />
       <div className="card">

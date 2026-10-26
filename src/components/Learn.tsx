@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Icon } from "./icons";
 import { InlineCode } from "./InlineCode";
-import { learn } from "@/data/learn";
+import { learn, lessonId } from "@/data/learn";
 
 // Beginner "Start here" cards for a track: a plain question, a plain answer, and
 // an optional worked example (input → output → how to read it). Open by default
@@ -24,7 +24,7 @@ export function Learn({ slug, heading }: { slug: string; heading?: React.ReactNo
       {open && (
         <div className="learn-cards">
           {data.cards.map((c, i) => (
-            <div className="learn-card" key={i}>
+            <div className="learn-card" key={i} id={lessonId(c.q)}>
               <div className="learn-q"><span className="learn-no">{i + 1}</span><h3><InlineCode text={c.q} /></h3></div>
               <p className="learn-a"><InlineCode text={c.a} /></p>
               {c.worked && (

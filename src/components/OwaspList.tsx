@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Risk } from "@/data/owasp";
 import { Icon } from "./icons";
@@ -26,6 +26,13 @@ export function OwaspList({
     d.open = true;
     d.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // A link straight to one risk (/llm#LLM05, e.g. from a certification's study guide) opens it.
+  useEffect(() => {
+    const open = () => { if (location.hash) jump(decodeURIComponent(location.hash.slice(1))); };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <>
       <div className="eyebrow">{eyebrow}</div>

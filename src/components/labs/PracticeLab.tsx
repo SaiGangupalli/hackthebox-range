@@ -12,9 +12,11 @@ import { packetLabs } from "@/data/labs/packetLabs";
 import { sqlLabs } from "@/data/labs/sqlLabs";
 import { promptLabs } from "@/data/labs/promptLabs";
 import { cryptoLabs } from "@/data/labs/cryptoLabs";
+import { extraLabsByTrack } from "@/data/labs";
 
 // Picks the interactive practice lab(s) for a track. Each engine is added here
-// as it comes online; tracks without one yet simply render nothing.
+// as it comes online; tracks without one yet simply render nothing. Some tracks
+// also have extra shell labs (extraLabsByTrack), shown after the primary one.
 export function PracticeLab({ slug, heading }: { slug: string; heading?: React.ReactNode }) {
   const shell = shellLabs[slug];
   const spl = splLabs[slug];
@@ -22,7 +24,8 @@ export function PracticeLab({ slug, heading }: { slug: string; heading?: React.R
   const sql = sqlLabs[slug];
   const prompt = promptLabs[slug];
   const crypto = cryptoLabs[slug];
-  if (!shell && !spl && !pcap && !sql && !prompt && !crypto) return null;
+  const extra = extraLabsByTrack[slug] ?? [];
+  if (!shell && !spl && !pcap && !sql && !prompt && !crypto && !extra.length) return null;
 
   return (
     <>
@@ -33,6 +36,7 @@ export function PracticeLab({ slug, heading }: { slug: string; heading?: React.R
       {prompt && <PromptLab lab={prompt} />}
       {crypto && <CryptoLab lab={crypto} />}
       {shell && <ShellLab lab={shell} />}
+      {extra.map((lab) => <ShellLab key={lab.id} lab={lab} />)}
     </>
   );
 }

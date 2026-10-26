@@ -19,16 +19,19 @@ const SLOT_ORDER = [0, 2, 1, 3];
 
 // "Check your understanding": pick an answer to see straight away whether it's
 // right and why. Your best score is kept and shown on the home page. Pass
-// `questions` to quiz on a custom set (the mixed round); `slug` then just keys
-// the shuffle and the saved best score. `onRetry` replaces "Try again".
-export function Quiz({ slug, heading, questions: given, onRetry, retryLabel = "Try again", persist = true, explainable = true }: {
+// `questions` to quiz on a custom set (the mixed round, AI rounds); `slug` then
+// just keys the shuffle and the saved best score. `onRetry` replaces "Try
+// again", `actions` adds buttons beside it, and `onFinish` hears the result.
+export function Quiz({ slug, heading, questions: given, onRetry, retryLabel = "Try again", persist = true, explainable = true, actions, onFinish }: {
   slug: string;
   heading?: React.ReactNode;
   questions?: Question[];
   onRetry?: () => void;
   retryLabel?: string;
   persist?: boolean; // false: don't save a best score (AI-generated rounds)
-  explainable?: boolean; // false: hide "Explain more" (the tutor only knows built-in questions)
+  explainable?: boolean; // false: hide "Explain more" (AI questions also need the server's signature)
+  actions?: React.ReactNode;
+  onFinish?: (result: { correct: number; total: number; missed: Question[] }) => void;
 }) {
   const questions = given ?? quiz[slug];
   const shuffled = useMemo(
@@ -48,6 +51,9 @@ export function Quiz({ slug, heading, questions: given, onRetry, retryLabel = "T
   const finished = total > 0 && answered === total;
 
   useEffect(() => { if (finished && persist) saveQuiz(slug, correct, total); }, [finished, correct, total, slug, persist]);
+  useEffect(() => {
+    if (finished) onFinish?.({ correct, total, missed: questions.filter((q, i) => shuffled[i][picked[i]!] !== q.right) });
+  }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!questions?.length) return null;
 
@@ -73,6 +79,7 @@ export function Quiz({ slug, heading, questions: given, onRetry, retryLabel = "T
           return (
             <div className={`qz${done ? (right ? " right" : " wrong") : ""}`} key={q.q}>
               <div className="qz-q"><span className="qz-n">{i + 1}</span><span>{q.q}</span></div>
+              {q.snippet && <pre className="qz-snippet">{q.snippet}</pre>}
               <div className="qz-opts" role="group" aria-label={`Question ${i + 1} options`}>
                 {shuffled[i].map((opt, k) => {
                   const isRight = opt === q.right;
@@ -95,7 +102,7 @@ export function Quiz({ slug, heading, questions: given, onRetry, retryLabel = "T
                 <div className={`qz-why ${right ? "ok" : "no"}`}>
                   <b>{right ? "Correct." : `Not quite — the answer is “${q.right}”.`}</b> {q.why}
                   {explainable && (
-                    <button className="task-hintbtn tutor-link" onClick={() => askTutor({ kind: "quiz-explain", question: q.q, picked: shuffled[i][p!] }, `Explain more: “${q.q}” — I picked “${shuffled[i][p!]}”.`)}>
+                    <button className="task-hintbtn tutor-link" onClick={() => askTutor({ kind: "quiz-explain", question: q.q, picked: shuffled[i][p!], ...(q.sig ? { ai: q } : {}) }, `Explain more: “${q.q}” — I picked “${shuffled[i][p!]}”.`)}>
                       <Icon name="llm" />Explain more with the tutor
                     </button>
                   )}
@@ -110,7 +117,10 @@ export function Quiz({ slug, heading, questions: given, onRetry, retryLabel = "T
             <div className="quiz-score">{correct}/{total}</div>
             <div>
               <b>{verdict}</b>
-              <button className="btn" onClick={() => (onRetry ? onRetry() : setPicked(questions.map(() => null)))}>{retryLabel}</button>
+              <div className="quiz-actions">
+                <button className="btn" onClick={() => (onRetry ? onRetry() : setPicked(questions.map(() => null)))}>{retryLabel}</button>
+                {actions}
+              </div>
             </div>
           </div>
         )}

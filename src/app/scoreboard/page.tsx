@@ -33,7 +33,7 @@ export default async function ScoreboardPage({ searchParams }: { searchParams: P
       <div className="eyebrow"><Icon name="trophy" />standings</div>
       <h1 className="view-title">Scoreboard</h1>
       <p className="lede">
-        Live ranking across all <Link href="/challenges">challenges</Link> — {totalPoints} points on the board.
+        Live ranking across all <Link href="/challenges">challenges</Link> — {totalPoints} points on the board. Updates every few seconds.
         Paid hints come off your points. On a tie, whoever reached their score first ranks higher.
       </p>
 

@@ -6,6 +6,7 @@ import { recipes } from "@/data/commands";
 import { drillById } from "@/data/drills";
 import { HELP } from "@/lib/sim/shell";
 import { TUTOR_RULES, pageContext } from "./context";
+import { verifiedQuestion } from "./signed";
 import { grokAvailable, grokStream, type ChatMsg } from "./grok";
 
 // The AI tutor. The browser sends *what* it wants (a chat message, "explain this
@@ -20,7 +21,7 @@ export type Ask =
   | { kind: "chat"; text: string }
   | { kind: "explain-command"; command: string }
   | { kind: "nudge"; labId: string; index: number }
-  | { kind: "quiz-explain"; question: string; picked: string }
+  | { kind: "quiz-explain"; question: string; picked: string; ai?: unknown }
   | { kind: "drill-help"; drillId: string; command?: string; output?: string };
 
 export type Turn = { role: "user" | "assistant"; content: string };
@@ -54,6 +55,16 @@ export function buildPrompt(ask: Ask): { prompt: string } | { error: string } {
       return { prompt: `I'm working on the lab "${lab.title}" and I'm stuck on objective ${Number(ask.index) + 1}: "${o.ask}". The lab's own approach hint says: ${o.hint} Give me a nudge toward the next step — a question to think about or one thing to try — without telling me the answer.` };
     }
     case "quiz-explain": {
+      // An AI-written question carries the server's signature (see ./signed).
+      if (ask.ai !== undefined) {
+        const q = verifiedQuestion(ask.ai);
+        if (!q) return { error: "Unknown quiz question." };
+        const picked = String(ask.picked ?? "");
+        if (picked !== q.right && !q.wrong.includes(picked)) return { error: "That answer isn't one of the options." };
+        const right = picked === q.right;
+        const shown = q.snippet ? `\n\`\`\`\n${q.snippet}\n\`\`\`\n` : " ";
+        return { prompt: `An AI-written practice question on this site: "${q.q}"${shown}I picked "${picked}"${right ? ", which was correct" : `, but the correct answer is "${q.right}"`}. The short explanation was: ${q.why} ${right ? "Explain the idea a bit more deeply and give me one real-world example so it sticks." : "Explain why my answer doesn't fit and why the correct one does, with an everyday example so I remember it."}` };
+      }
       for (const [slug, qs] of Object.entries(quiz)) {
         const q = qs.find((x) => x.q === ask.question);
         if (!q) continue;

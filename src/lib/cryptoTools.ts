@@ -55,6 +55,16 @@ export function reverse(s: string): string {
   return [...s].reverse().join("");
 }
 
+// Atbash: replace each letter with its mirror (A↔Z, B↔Y…). No key, and its own
+// inverse — encoding and decoding are the same operation. A giveaway in CTFs is
+// text where common words become fixed patterns (e.g. "SUBSTITUTION" → "HFYHGRGFGRLM").
+export function atbash(s: string): string {
+  return s.replace(/[a-z]/gi, (c) => {
+    const b = c <= "Z" ? 65 : 97;
+    return String.fromCharCode(b + 25 - (c.charCodeAt(0) - b));
+  });
+}
+
 export function caesar(s: string, n: number): string {
   return s.replace(/[a-z]/gi, (c) => {
     const b = c <= "Z" ? 65 : 97;
@@ -89,7 +99,7 @@ export function xorFromHex(hex: string, key: string): string {
 
 export const ENCODERS: Record<string, (s: string) => string> = {
   b64e: b64encode, b64d: b64decode, hexe: hexEncode, hexd: hexDecode,
-  urle: encodeURIComponent, urld: decodeURIComponent, rot13,
+  urle: encodeURIComponent, urld: decodeURIComponent, rot13, atbash,
   bine: binEncode, bind: binDecode, morse: morseEncode, morsed: morseDecode, rev: reverse,
 };
 

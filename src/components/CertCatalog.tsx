@@ -61,7 +61,6 @@ export function CertCatalog({ certs, trackTitles, signedIn }: { certs: IndustryC
               slug={`cert-${ai.cert.id}`}
               questions={ai.questions}
               persist={false}
-              explainable={false}
               onRetry={() => practise(ai.cert)}
               retryLabel="5 more questions"
               heading={

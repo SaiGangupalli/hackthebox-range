@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Icon } from "./icons";
 import { InlineCode } from "./InlineCode";
 import { LocalTime } from "./LocalTime";
-import type { RangeCert } from "@/data/certify";
+import { studyId, type RangeCert } from "@/data/certify";
 import type { CertStatus, ExamResult, PublicQ, ReqItem } from "@/lib/certify/exam";
 
 type Running = { questions: PublicQ[]; deadline: number; offset: number };
@@ -21,6 +21,8 @@ export function ExamRunner({ cert, status, reqs, signedIn, retryMinutes }: { cer
   const [run, setRun] = useState<Running | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<ExamResult | null>(null);
+  // The study-guide topic an exam topic belongs to, so a weak result links to what to revise.
+  const studyFor = (examTopic: string) => cert.study.find((t) => t.exam.includes(examTopic))?.topic;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -111,14 +113,14 @@ export function ExamRunner({ cert, status, reqs, signedIn, retryMinutes }: { cer
         ) : (
           <p className="er-retry">
             {retryAt ? <>You can try again after <b><LocalTime at={retryAt} format="time" /></b> ({retryMinutes} minutes). </> : null}
-            Use the time to revisit the topics below — the requirements list links to the right tracks and labs.
+            Use the time to revisit your weakest topics below — each links to its part of the study guide.
           </p>
         )}
         <h3>By topic</h3>
         <ul className="er-topics">
           {result.topics.map((t) => (
             <li key={t.topic} className={t.correct === t.total ? "ok" : t.correct / t.total < 0.5 ? "weak" : ""}>
-              <span>{t.topic}</span><b>{t.correct}/{t.total}</b>
+              {studyFor(t.topic) ? <a href={`#${studyId(studyFor(t.topic)!)}`}>{t.topic}</a> : <span>{t.topic}</span>}<b>{t.correct}/{t.total}</b>
             </li>
           ))}
         </ul>

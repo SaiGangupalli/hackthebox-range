@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Icon } from "./icons";
 import { Quiz } from "./Quiz";
+import { AiQuiz } from "./AiQuiz";
 import { quiz, type Question } from "@/data/quiz";
 import { path } from "@/data/path";
 import { tracks } from "@/data/tracks";
@@ -11,49 +12,34 @@ import { useQuizProgress } from "@/lib/quizProgress";
 
 const MIXED_SIZE = 10;
 
-// Every quiz in one place: pick a track's quiz or a mixed round of random
-// questions from all tracks, and take it right here.
+// Every quiz in one place: pick a track's quiz, a mixed round of random
+// questions from all tracks, or an AI quiz written fresh for the tracks, level
+// and focus you choose, and take it right here.
 export function QuizHub() {
   const bests = useQuizProgress(path.map((p) => p.slug));
   const [active, setActive] = useState<string | null>(null);
   const [mixed, setMixed] = useState<Question[]>([]);
   const [round, setRound] = useState(0);
   const { status } = useSession();
-  const [ai, setAi] = useState<{ slug: string; questions: Question[]; backup: boolean } | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiErr, setAiErr] = useState("");
+  const [ai, setAi] = useState<{ preset: string[] | undefined; autostart: boolean; n: number }>({ preset: undefined, autostart: false, n: 0 });
+  const areaRef = useRef<HTMLDivElement>(null);
 
-  // Fresh AI-written questions for a track (not saved as your best score).
-  async function generate(slug: string) {
-    setAiBusy(true);
-    setAiErr("");
-    try {
-      const res = await fetch("/api/ai/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ track: slug }) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setAiErr(data.error ?? "Couldn't generate questions."); return; }
-      setAi({ slug, questions: data.questions, backup: !!data.backup });
-      setRound((r) => r + 1);
-      setActive(`ai:${slug}`);
-    } catch {
-      setAiErr("Network error — please try again.");
-    } finally {
-      setAiBusy(false);
-    }
+  // The AI quiz, optionally starting straight away on one track's questions.
+  function openAi(preset?: string[]) {
+    setAi((a) => ({ preset, autostart: !!preset, n: a.n + 1 }));
+    setActive("ai");
+    requestAnimationFrame(() => areaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   const aiButton = (slug: string) => (
     <div className="ai-gen">
       {status === "authenticated" ? (
-        <button className="btn" disabled={aiBusy} onClick={() => generate(slug)}>
-          <Icon name="llm" />{aiBusy ? "Writing fresh questions… (about 20 s)" : "Generate 5 fresh questions with AI"}
-        </button>
+        <button className="btn" onClick={() => openAi([slug])}><Icon name="llm" />Generate fresh questions with AI</button>
       ) : (
         <span><Icon name="llm" /><Link href="/login">Sign in</Link> to generate fresh AI practice questions.</span>
       )}
-      {aiErr && <span className="ai-err">{aiErr}</span>}
     </div>
   );
-  const areaRef = useRef<HTMLDivElement>(null);
 
   const totalQ = path.reduce((s, p) => s + (quiz[p.slug]?.length ?? 0), 0);
   const bestSum = path.reduce((s, p) => s + (bests[p.slug]?.best ?? 0), 0);
@@ -87,6 +73,12 @@ export function QuizHub() {
           <small>{MIXED_SIZE} random questions from every track — a new set each time.</small>
           <span className="qh-go">Start a round →</span>
         </button>
+        <button className={`qh-card ai${active === "ai" ? " on" : ""}`} onClick={() => openAi()}>
+          <span className="qh-top"><Icon name="llm" /><span className="qh-n">ai</span></span>
+          <b>AI quiz</b>
+          <small>Fresh questions every time: pick tracks, level, length and a focus — or your weak spots.</small>
+          <span className="qh-go">Build a quiz →</span>
+        </button>
         {path.map((p, i) => {
           const n = quiz[p.slug]?.length ?? 0;
           const b = bests[p.slug];
@@ -115,22 +107,8 @@ export function QuizHub() {
             retryLabel="New round"
             heading={<div className="quizhub-h"><h2>Mixed round</h2><button className="task-hintbtn" onClick={() => setActive(null)}>close</button></div>}
           />
-        ) : active.startsWith("ai:") && ai ? (
-          <Quiz
-            key={`ai-${round}`}
-            slug={`ai-${ai.slug}`}
-            questions={ai.questions}
-            persist={false}
-            explainable={false}
-            onRetry={() => generate(ai.slug)}
-            retryLabel={aiBusy ? "Writing…" : "Generate another round"}
-            heading={
-              <div className="quizhub-h">
-                <h2>{tracks[ai.slug].title} · fresh AI questions</h2>
-                <span>practice only — not saved{ai.backup ? " · written by the backup model" : ""} · <button className="task-hintbtn" onClick={() => setActive(ai.slug)}>back to the track quiz</button></span>
-              </div>
-            }
-          />
+        ) : active === "ai" ? (
+          <AiQuiz key={ai.n} preset={ai.preset} autostart={ai.autostart} onClose={() => setActive(null)} />
         ) : (
           <Quiz
             key={active}
