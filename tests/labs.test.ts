@@ -4,6 +4,7 @@ import { Shell } from "@/lib/sim/shell";
 import { shellLabs } from "@/data/labs/shellLabs";
 import { platformLabsByTrack } from "@/data/labs/platformLabs";
 import { forensicsLabsByTrack } from "@/data/labs/forensicsLabs";
+import { webLabsByTrack } from "@/data/labs/webLabs";
 import { labMeta, labById } from "@/data/labs";
 import { path } from "@/data/path";
 
@@ -75,6 +76,15 @@ for (const [slug, steps] of Object.entries(plan)) {
 // judgement the learner makes from it (a yes/no or a derived word).
 type Step = { run: string[]; ok: string; no: string; derived?: boolean };
 const platform: Record<string, Step[]> = {
+  "webmobile-webflags": [
+    { run: ["curl -i http://shop.local/"], ok: "HHB{r3sp0ns3_h34d3rs}", no: "HHB{nope}" },
+    { run: ["curl http://shop.local/api/products"], ok: "HHB{h1dd3n_ap1_f13ld}", no: "HHB{nope}" },
+    { run: ["curl \"http://shop.local/item?id=1'\""], ok: "syntax", no: "fine" },
+    { run: ["curl \"http://shop.local/item?id=-1 UNION SELECT flag,2 FROM flags-- -\""], ok: "HHB{un10n_b4s3d_sql1}", no: "HHB{nope}" },
+    { run: ["curl \"http://shop.local/search?q=<script>document.cookie</script>\""], ok: "HHB{st0l3n_c00k13_xss}", no: "HHB{nope}" },
+    { run: ["cat app/AndroidManifest.xml"], ok: "READ_SMS", no: "CAMERA" },
+    { run: ["grep -ri HHB app"], ok: "HHB{h4rdc0d3d_1n_str1ngs}", no: "HHB{nope}" },
+  ],
   "forensics-hiding": [
     { run: ["cat invoice/docProps/core.xml"], ok: "HHB{m3t4d4t4_n3v3r_li3s}", no: "HHB{nope}" },
     { run: ["cat 'recovery/$Recycle.Bin/$RF8A21.txt'"], ok: "HHB{d3l3t3d_n0t_g0n3}", no: "HHB{nope}" },
@@ -125,7 +135,7 @@ const platform: Record<string, Step[]> = {
   ],
 };
 
-const platformById = Object.fromEntries([...Object.values(platformLabsByTrack).flat(), ...Object.values(forensicsLabsByTrack).flat()].map((l) => [l.id, l]));
+const platformById = Object.fromEntries([...Object.values(platformLabsByTrack).flat(), ...Object.values(forensicsLabsByTrack).flat(), ...Object.values(webLabsByTrack).flat()].map((l) => [l.id, l]));
 
 for (const [id, steps] of Object.entries(platform)) {
   test(`${id} lab: every objective is solvable from its hint`, () => {

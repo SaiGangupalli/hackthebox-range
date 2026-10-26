@@ -12,6 +12,7 @@ import { shellLabs, type ShellLab } from "./labs/shellLabs";
 import { advancedLabs } from "./labs/advancedLabs";
 import { platformLabsByTrack } from "./labs/platformLabs";
 import { forensicsLabsByTrack } from "./labs/forensicsLabs";
+import { webLabsByTrack } from "./labs/webLabs";
 import { tracks } from "./tracks";
 
 export type CommandGroup = {
@@ -158,6 +159,7 @@ export const commandGroups: CommandGroup[] = [
       { name: "nmap", tip: "Open ports tell you the attack surface; note the service and version behind each." },
       { name: "nikto", tip: "Flags missing security headers and exposed files like /.git/ and backups." },
       { name: "ffuf", tip: "A 301 on a dot-folder or a 200 on backup.zip is a lead worth chasing — and worth locking down." },
+      { name: "curl", tip: "curl -i shows response headers too; pipe to grep to hunt for a flag in the body or a header." },
     ],
   },
 ];
@@ -181,6 +183,7 @@ export const LAB_TOOLS: Record<string, [string, string]> = {
   nmap: ["map a host's open ports and the service behind each (authorized targets only)", "nmap app.example"],
   nikto: ["check a web server for known issues, missing headers and exposed files (authorized targets only)", "nikto -h app.example"],
   ffuf: ["discover hidden paths and parameters by trying a wordlist (authorized targets only)", "ffuf -w words.txt -u https://app.example/FUZZ"],
+  curl: ["make an HTTP request and print the response — add -i to include the headers, where flags often hide", "curl -i http://shop.local/"],
   kubectl: ["inspect a Kubernetes cluster: get, describe, logs, -o yaml/jsonpath, auth can-i", "kubectl get pods"],
   docker: ["inspect images and containers: images, ps, history, inspect, logs", "docker image ls"],
   terraform: ["preview what an infrastructure change will create, change or destroy", "terraform plan"],
@@ -192,7 +195,7 @@ export const describe = (name: string): [string, string] | undefined => HELP[nam
 // Every lab's terminal, as [track slug, lab] pairs (primary labs plus extras).
 const labEntries: [string, ShellLab][] = [
   ...(Object.entries(shellLabs) as [string, ShellLab][]),
-  ...[platformLabsByTrack, forensicsLabsByTrack].flatMap((src) => Object.entries(src).flatMap(([slug, arr]) => arr.map((l) => [slug, l] as [string, ShellLab]))),
+  ...[platformLabsByTrack, forensicsLabsByTrack, webLabsByTrack].flatMap((src) => Object.entries(src).flatMap(([slug, arr]) => arr.map((l) => [slug, l] as [string, ShellLab]))),
 ];
 
 /** The track labs whose terminal has this command (a simulated tool). */

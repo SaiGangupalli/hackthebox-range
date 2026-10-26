@@ -8,6 +8,7 @@ import { promptLabs } from "./promptLabs";
 import { cryptoLabs } from "./cryptoLabs";
 import { platformLabsByTrack } from "./platformLabs";
 import { forensicsLabsByTrack } from "./forensicsLabs";
+import { webLabsByTrack } from "./webLabs";
 import { drills, DOJO_ID } from "../drills";
 
 export type LabMeta = { id: string; slug: string; title: string; objectives: number };
@@ -18,7 +19,7 @@ const sets: Record<string, AnyLab>[] = [shellLabs, splLabs, packetLabs, sqlLabs,
 
 // Every track's extra shell labs (beyond its primary one), merged per track.
 export const extraLabsByTrack: Record<string, ShellLab[]> = {};
-for (const src of [platformLabsByTrack, forensicsLabsByTrack]) {
+for (const src of [platformLabsByTrack, forensicsLabsByTrack, webLabsByTrack]) {
   for (const [slug, labs] of Object.entries(src)) extraLabsByTrack[slug] = [...(extraLabsByTrack[slug] ?? []), ...labs];
 }
 
