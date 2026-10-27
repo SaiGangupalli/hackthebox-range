@@ -88,6 +88,8 @@ export const commandGroups: CommandGroup[] = [
     intro: "Prove a file hasn't changed, and see exactly what has.",
     commands: [
       { name: "sha256sum", tip: "If even one character changes, the fingerprint changes completely." },
+      { name: "md5sum", tip: "32 hex characters. Fast but broken — fine for a checksum or a CTF, never for security." },
+      { name: "sha1sum", tip: "40 hex characters. Weak (collisions exist) — recognise it, but don't rely on it." },
       { name: "diff", tip: "Compare a config before and after a change to spot anything unexpected." },
     ],
   },
@@ -107,6 +109,7 @@ export const commandGroups: CommandGroup[] = [
     intro: "Reverse the encodings that show up in every CTF.",
     commands: [
       { name: "base64", tip: "Base64 often ends in = or ==. Decoding needs no key — it isn't encryption." },
+      { name: "base32", tip: "Base32 uses only A–Z and 2–7 (no lowercase, no 0/1/8/9) and often ends in =. A good tell when you see that alphabet." },
       { name: "echo", tip: "Use echo to feed text into another command: echo aGk= | base64 -d" },
     ],
   },

@@ -14,6 +14,13 @@ export const metadata = { title: "H@ck1h3B0x Range — Cheatsheet" };
 
 const num = (i: number) => String(i + 1).padStart(2, "0");
 
+// Printable ASCII (32–126) with decimal and hex, for the reference appendix.
+const ASCII = Array.from({ length: 95 }, (_, i) => {
+  const dec = 32 + i;
+  const ch = dec === 32 ? "SP" : String.fromCharCode(dec);
+  return { dec, ch, hex: dec.toString(16).toUpperCase().padStart(2, "0") };
+});
+
 // One printable study guide for the whole range. Every track follows the same
 // shape — overview, outcomes, concepts, commands, tools, defend, self-check —
 // then appendices for the OWASP lists and the glossary. "Download PDF" prints
@@ -60,7 +67,8 @@ export default function CheatsheetPage() {
           })}
           <li><a href="#owasp-web"><span className="toc-n">A</span><span className="toc-t">OWASP Web Top 10</span><span className="toc-m">appendix</span></a></li>
           <li><a href="#owasp-llm"><span className="toc-n">B</span><span className="toc-t">OWASP LLM Top 10</span><span className="toc-m">appendix</span></a></li>
-          <li><a href="#glossary"><span className="toc-n">C</span><span className="toc-t">Glossary</span><span className="toc-m">{glossary.length} terms</span></a></li>
+          <li><a href="#ascii"><span className="toc-n">C</span><span className="toc-t">ASCII table</span><span className="toc-m">appendix</span></a></li>
+          <li><a href="#glossary"><span className="toc-n">D</span><span className="toc-t">Glossary</span><span className="toc-m">{glossary.length} terms</span></a></li>
         </ul>
       </nav>
 
@@ -145,9 +153,33 @@ export default function CheatsheetPage() {
       <RiskAppendix id="owasp-web" letter="A" title="OWASP Web Top 10" intro="The ten most critical web application risks (2021): what each is, how it's found on a lab target, how it's fixed, and a vulnerable-vs-fixed example." risks={owasp} />
       <RiskAppendix id="owasp-llm" letter="B" title="OWASP LLM Top 10 (2025)" intro="The top risks for applications built on large language models, in the same format." risks={llm} />
 
-      <section className="sheet-track" id="glossary">
+      <section className="sheet-track" id="ascii">
         <div className="sheet-head">
           <span className="sheet-num">C</span>
+          <div>
+            <h2>ASCII table</h2>
+            <div className="sheet-meta">appendix</div>
+          </div>
+        </div>
+        <p className="sheet-blurb">
+          Every printable character with its decimal and hex code — read hex or decimal by hand, or paste into the
+          Encoder (Hex → text). Each character is one byte (8 bits). Handy anchors: A = 65 = 0x41, a = 97 = 0x61,
+          0 = 48 = 0x30, space = 32 = 0x20, and the flag braces {"{"} = 123, {"}"} = 125.
+        </p>
+        <div className="ascii-grid">
+          {ASCII.map((c) => (
+            <div className="ascii-cell" key={c.dec}>
+              <span className="ascii-ch">{c.ch}</span>
+              <span className="ascii-code">{c.dec}</span>
+              <span className="ascii-code">0x{c.hex}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="sheet-track" id="glossary">
+        <div className="sheet-head">
+          <span className="sheet-num">D</span>
           <div>
             <h2>Glossary</h2>
             <div className="sheet-meta">{glossary.length} terms in plain English</div>

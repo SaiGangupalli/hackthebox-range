@@ -30,6 +30,33 @@ export function hexDecode(s: string): string {
   for (let i = 0; i < h.length; i += 2) a.push(parseInt(h.substr(i, 2), 16));
   return td.decode(Uint8Array.from(a));
 }
+// Base32 (RFC 4648): like Base64 but a 32-letter alphabet (A–Z, 2–7), common in
+// CTFs and TOTP secrets. Encoding, not encryption — no key.
+const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+export function base32encode(s: string): string {
+  const b = te.encode(s);
+  let bits = 0, val = 0, out = "";
+  for (const byte of b) {
+    val = (val << 8) | byte; bits += 8;
+    while (bits >= 5) { bits -= 5; out += B32[(val >>> bits) & 31]; }
+    val &= (1 << bits) - 1;
+  }
+  if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+  while (out.length % 8) out += "=";
+  return out;
+}
+export function base32decode(s: string): string {
+  const clean = s.toUpperCase().replace(/=+$/, "").replace(/[^A-Z2-7]/g, "");
+  let bits = 0, val = 0;
+  const bytes: number[] = [];
+  for (const c of clean) {
+    val = (val << 5) | B32.indexOf(c); bits += 5;
+    if (bits >= 8) { bits -= 8; bytes.push((val >>> bits) & 0xff); }
+    val &= (1 << bits) - 1;
+  }
+  return td.decode(Uint8Array.from(bytes));
+}
+
 export function rot13(s: string): string {
   return s.replace(/[a-z]/gi, (c) => {
     const b = c <= "Z" ? 65 : 97;
@@ -100,6 +127,7 @@ export function xorFromHex(hex: string, key: string): string {
 export const ENCODERS: Record<string, (s: string) => string> = {
   b64e: b64encode, b64d: b64decode, hexe: hexEncode, hexd: hexDecode,
   urle: encodeURIComponent, urld: decodeURIComponent, rot13, atbash,
+  b32e: base32encode, b32d: base32decode,
   bine: binEncode, bind: binDecode, morse: morseEncode, morsed: morseDecode, rev: reverse,
 };
 

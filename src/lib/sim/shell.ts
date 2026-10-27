@@ -3,7 +3,7 @@
 // Binary files are latin1 strings (one char = one byte), so xxd/file/binwalk see
 // real magic bytes.
 
-import { sha256Hex } from "./hash";
+import { sha256Hex, sha1Hex, md5Hex } from "./hash";
 
 export type FileMeta = {
   mode?: string; // ls-style, e.g. "-rwsr-xr-x" or "drwx------"
@@ -76,6 +76,8 @@ export const HELP: Record<string, [string, string]> = {
   tee: ["show output on screen AND save it to a file (-a adds to the end)", "grep Failed auth.log | tee failed.txt"],
   diff: ["show the lines that differ between two files (< first file, > second)", "diff old.conf new.conf"],
   sha256sum: ["print a file's SHA-256 fingerprint (-c checks a list of them)", "sha256sum tool.sh"],
+  md5sum: ["print a file's MD5 fingerprint (fast but broken — for checksums/CTFs, not security)", "md5sum tool.sh"],
+  sha1sum: ["print a file's SHA-1 fingerprint (weak — avoid for security)", "sha1sum tool.sh"],
   find: ["search for files (-name, -iname ignores case, -type f|d, -perm -4000, -user, -writable)", "find / -perm -4000 2>/dev/null"],
   file: ["identify a file's real type from its first bytes", "file photo.jpg"],
   strings: ["print readable text buried inside a binary file", "strings image.png"],
@@ -83,6 +85,7 @@ export const HELP: Record<string, [string, string]> = {
   binwalk: ["scan a file for other files hidden inside (-e extracts them)", "binwalk image.png"],
   unzip: ["extract a zip archive (-l only lists it)", "unzip -l archive.zip"],
   base64: ["encode text as Base64, or decode with -d", "echo aGVsbG8= | base64 -d"],
+  base32: ["encode text as Base32 (A–Z, 2–7), or decode with -d", "echo MZXW6YTB | base32 -d"],
   echo: ["print text (-n leaves off the new line at the end)", "echo hello"],
   ps: ["list running programs (aux = every user's, with details)", "ps aux"],
   ss: ["list network ports (-tln = listening TCP ports as numbers, -p adds the program)", "ss -tlnp"],
@@ -103,6 +106,30 @@ const text = (ls: string[]) => (ls.length ? ls.join("\n") + "\n" : "");
 const parentOf = (p: string) => { const i = p.lastIndexOf("/"); return i <= 0 ? "/" : p.slice(0, i); };
 const baseOf = (p: string) => p.slice(p.lastIndexOf("/") + 1) || "/";
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Base32 (RFC 4648) over latin1 bytes, matching base64's btoa/atob semantics.
+const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function b32enc(s: string): string {
+  let bits = 0, val = 0, out = "";
+  for (let i = 0; i < s.length; i++) {
+    val = (val << 8) | (s.charCodeAt(i) & 0xff); bits += 8;
+    while (bits >= 5) { bits -= 5; out += B32[(val >>> bits) & 31]; }
+    val &= (1 << bits) - 1;
+  }
+  if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+  while (out.length % 8) out += "=";
+  return out;
+}
+function b32dec(s: string): string {
+  const clean = s.toUpperCase().replace(/=+$/, "").replace(/[^A-Z2-7]/g, "");
+  let bits = 0, val = 0, out = "";
+  for (const c of clean) {
+    val = (val << 5) | B32.indexOf(c); bits += 5;
+    if (bits >= 8) { bits -= 8; out += String.fromCharCode((val >>> bits) & 0xff); }
+    val &= (1 << bits) - 1;
+  }
+  return out;
+}
 
 function globRe(glob: string, flags = ""): RegExp {
   return new RegExp("^" + escapeRe(glob).replace(/\\\*/g, ".*").replace(/\\\?/g, ".") + "$", flags);
@@ -729,6 +756,43 @@ function headTail(which: "head" | "tail"): Builtin {
   };
 }
 
+// md5sum / sha1sum / sha256sum: compute a digest, or verify a list with -c.
+function hashsum(name: string, fn: (s: string) => string, hexlen: number): Builtin {
+  const lineRe = new RegExp(`^([0-9a-fA-F]{${hexlen}}) [ *](.+)$`);
+  return (sh, args, stdin) => {
+    const { flags, rest } = parseArgs(args);
+    if (flags.c) {
+      if (!rest.length) return fail(`${name}: -c needs a checksum list, e.g. ${name} -c CHECKSUMS.txt`);
+      const list = sh.readFile(rest[0], name);
+      if ("err" in list) return fail(list.err);
+      const out: string[] = [];
+      let bad = 0, unread = 0;
+      for (const l of lines(list.data)) {
+        const m = lineRe.exec(l.trim());
+        if (!m) continue;
+        const r = sh.readFile(m[2], name);
+        if ("err" in r) { out.push(`${m[2]}: FAILED open or read`); unread++; continue; }
+        const same = fn(r.data) === m[1].toLowerCase();
+        if (!same) bad++;
+        out.push(`${m[2]}: ${same ? "OK" : "FAILED"}`);
+      }
+      let err = "";
+      if (unread) err += `${name}: WARNING: ${unread} listed file${unread > 1 ? "s" : ""} could not be read (run it from the folder the list describes)\n`;
+      if (bad) err += `${name}: WARNING: ${bad} computed checksum${bad > 1 ? "s" : ""} did NOT match\n`;
+      return { out: text(out), err, code: bad || unread ? 1 : 0 };
+    }
+    if (!rest.length) return ok(`${fn(stdin)}  -\n`);
+    const out: string[] = [];
+    let err = "";
+    for (const a of rest) {
+      if (sh.dirs.has(sh.resolve(a))) { err += `${name}: ${a}: Is a directory\n`; continue; }
+      const r = sh.readFile(a, name);
+      if ("err" in r) err += r.err; else out.push(`${fn(r.data)}  ${a}`);
+    }
+    return { out: text(out), err, code: err ? 1 : 0 };
+  };
+}
+
 const BUILTINS: Record<string, Builtin> = {
   help(sh, args) {
     const name = args[0];
@@ -994,6 +1058,15 @@ const BUILTINS: Record<string, Builtin> = {
     } catch {
       return fail("base64: invalid input");
     }
+  },
+
+  base32(sh, args, stdin) {
+    const { flags, rest } = parseArgs(args);
+    const { inputs, err } = gather(sh, "base32", rest.slice(0, 1), stdin);
+    if (err) return { out: "", err, code: 1 };
+    const data = inputs.map((i) => i.data).join("");
+    if (flags.d || flags.decode) return ok(b32dec(data));
+    return ok(b32enc(data) + "\n");
   },
 
   xxd(sh, args, stdin) {
@@ -1314,38 +1387,9 @@ const BUILTINS: Record<string, Builtin> = {
     return { out: text(out), err: "", code: out.length ? 1 : 0 };
   },
 
-  sha256sum(sh, args, stdin) {
-    const { flags, rest } = parseArgs(args);
-    if (flags.c) {
-      if (!rest.length) return fail("sha256sum: -c needs a checksum list, e.g. sha256sum -c CHECKSUMS.txt");
-      const list = sh.readFile(rest[0], "sha256sum");
-      if ("err" in list) return fail(list.err);
-      const out: string[] = [];
-      let bad = 0, unread = 0;
-      for (const l of lines(list.data)) {
-        const m = /^([0-9a-fA-F]{64}) [ *](.+)$/.exec(l.trim());
-        if (!m) continue;
-        const r = sh.readFile(m[2], "sha256sum");
-        if ("err" in r) { out.push(`${m[2]}: FAILED open or read`); unread++; continue; }
-        const same = sha256Hex(r.data) === m[1].toLowerCase();
-        if (!same) bad++;
-        out.push(`${m[2]}: ${same ? "OK" : "FAILED"}`);
-      }
-      let err = "";
-      if (unread) err += `sha256sum: WARNING: ${unread} listed file${unread > 1 ? "s" : ""} could not be read (run it from the folder the list describes)\n`;
-      if (bad) err += `sha256sum: WARNING: ${bad} computed checksum${bad > 1 ? "s" : ""} did NOT match\n`;
-      return { out: text(out), err, code: bad || unread ? 1 : 0 };
-    }
-    if (!rest.length) return ok(`${sha256Hex(stdin)}  -\n`);
-    const out: string[] = [];
-    let err = "";
-    for (const a of rest) {
-      if (sh.dirs.has(sh.resolve(a))) { err += `sha256sum: ${a}: Is a directory\n`; continue; }
-      const r = sh.readFile(a, "sha256sum");
-      if ("err" in r) err += r.err; else out.push(`${sha256Hex(r.data)}  ${a}`);
-    }
-    return { out: text(out), err, code: err ? 1 : 0 };
-  },
+  sha256sum: hashsum("sha256sum", sha256Hex, 64),
+  sha1sum: hashsum("sha1sum", sha1Hex, 40),
+  md5sum: hashsum("md5sum", md5Hex, 32),
 
   // ── Triage a machine ───────────────────────────────────────────────────────
   ps(sh, args) {

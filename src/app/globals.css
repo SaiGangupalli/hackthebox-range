@@ -631,6 +631,19 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
   .tk-online::after{content:" — " attr(href);font-family:var(--mono);color:var(--faint);word-break:break-all}
 }
 
+/* ASCII table (cheatsheet appendix) */
+.ascii-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;margin-top:8px}
+.ascii-cell{display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--surface-2,var(--surface));border:1px solid var(--border-soft,var(--border));border-radius:7px;padding:5px 2px;font-family:var(--mono)}
+.ascii-ch{font-size:14px;font-weight:600;color:var(--fg);line-height:1.1}
+.ascii-code{font-size:10px;color:var(--muted);line-height:1.2}
+@media (max-width:640px){.ascii-grid{grid-template-columns:repeat(5,1fr)}}
+@media print{
+  .ascii-grid{grid-template-columns:repeat(12,1fr);gap:3px;break-inside:avoid}
+  .ascii-cell{padding:3px 1px;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .ascii-ch{font-size:9pt}
+  .ascii-code{font-size:6.5pt}
+}
+
 /* AI prompt library */
 .pl-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
 .pl-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}

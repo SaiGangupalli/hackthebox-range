@@ -10,6 +10,7 @@ import {
 
 const ENC_OPTS: [string, string][] = [
   ["b64e", "Base64 encode"], ["b64d", "Base64 decode"],
+  ["b32e", "Base32 encode"], ["b32d", "Base32 decode"],
   ["hexe", "Hex encode"], ["hexd", "Hex decode"],
   ["urle", "URL encode"], ["urld", "URL decode"], ["rot13", "ROT13"], ["atbash", "Atbash"],
   ["bine", "Binary encode"], ["bind", "Binary decode"],
@@ -26,7 +27,7 @@ function Encoder() {
   return (
     <div className="tool" id="tool-encoder">
       <div className="tool-h"><Icon name="crypto" /><h2>Encoder / decoder</h2></div>
-      <div className="tool-sub">Base64, Hex, URL, ROT13, Atbash, binary, Morse — the everyday CTF encodings.</div>
+      <div className="tool-sub">Base64, Base32, Hex, URL, ROT13, Atbash, binary, Morse — the everyday CTF encodings.</div>
       <div className="field">
         <label htmlFor="encIn">input</label>
         <textarea id="encIn" value={input} onChange={(e) => setInput(e.target.value)} />

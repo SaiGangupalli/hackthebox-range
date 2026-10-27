@@ -9,6 +9,7 @@ import { LabHowTo } from "./LabHowTo";
 // Operations offered by the chaining decoder, labelled for beginners.
 const OPS: [string, string][] = [
   ["b64d", "Base64 → text"],
+  ["b32d", "Base32 → text"],
   ["hexd", "Hex → text"],
   ["rot13", "ROT13"],
   ["atbash", "Atbash"],
