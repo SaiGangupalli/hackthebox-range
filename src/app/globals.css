@@ -644,6 +644,11 @@ ol.path{list-style:none;margin:0;padding:0;display:grid;gap:8px}
   .ascii-code{font-size:6.5pt}
 }
 
+/* Web payloads — OWASP tag chip next to a group heading */
+.pay-owasp{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.3px;color:var(--accent);background:var(--accent-weak);border:1px solid var(--accent-line);border-radius:999px;padding:2px 9px;font-weight:500}
+@media (max-width:640px){.pay-owasp{display:none}}
+@media print{.pay-owasp{color:var(--accent);background:none;border-color:var(--accent-line);print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
 /* AI prompt library */
 .pl-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
 .pl-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}

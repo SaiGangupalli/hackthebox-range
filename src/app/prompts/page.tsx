@@ -1,8 +1,9 @@
 import { promptLibrary } from "@/data/prompts";
 import { Icon } from "@/components/icons";
 import { Copyable } from "@/components/Copyable";
+import { PrintButton } from "@/components/PrintButton";
 
-export const metadata = { title: "AI prompts · H@ck1h3B0x Range" };
+export const metadata = { title: "H@ck1h3B0x Range — AI prompts" };
 
 export default function PromptsPage() {
   return (
@@ -14,6 +15,10 @@ export default function PromptsPage() {
         and learn across the CTF categories, plus prompt-injection patterns for the GenAI challenges. Click a prompt
         to copy it, then replace the <code>&lt;…&gt;</code> markers with your own data.
       </p>
+      <div className="sheet-actions no-print" style={{ marginBottom: 10 }}>
+        <PrintButton />
+        <span className="sheet-hint">Opens your print dialog — choose “Save as PDF”.</span>
+      </div>
       <div className="callout warn" style={{ marginBottom: 6 }}>
         <Icon name="ethics" />
         <div>
